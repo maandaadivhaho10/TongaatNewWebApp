@@ -299,6 +299,9 @@ export default function Login() {
               {/* Login button */}
               <button
                 type="submit"
+                onClick={() =>
+                  navigate('/dashboard')
+                }
                 className="w-full h-12 rounded-full text-white text-sm font-semibold shadow-sm transition-all duration-200 bg-[#201E64] hover:bg-[#2B2889] hover:shadow-md active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#201E64] focus-visible:ring-offset-2"
               >
                 Log In
