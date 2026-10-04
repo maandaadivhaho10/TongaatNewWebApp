@@ -1,184 +1,165 @@
 import React from 'react';
-import {
-  ArrowRight,
-  ChevronDown
-} from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 const NAVY = '#201E64';
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 bg-white text-neutral-900">
+    <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-24 bg-white text-neutral-900">
 
-      {/* Subtle background decoration */}
-      <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-[#201E64]/5" />
-      <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-[#201E64]/5" />
+      {/* Background decoration */}
+      <div
+        className="absolute -top-40 -right-40 w-96 h-96 rounded-full"
+        style={{ backgroundColor: `${NAVY}0D` }}
+      />
+
+      <div
+        className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full"
+        style={{ backgroundColor: `${NAVY}0D` }}
+      />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
 
-          {/* LEFT COLUMN */}
-          <div className="lg:col-span-6 space-y-6 sm:space-y-8 text-center lg:text-left">
+          {/* LEFT CONTENT */}
+          <div className="lg:col-span-7 text-center lg:text-left">
 
-            {/* Main Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold tracking-tight leading-[1.12] text-neutral-900">
+            {/* Main heading */}
+            <h1 className="text-4xl sm:text-5xl lg:text-[54px] font-extrabold tracking-tight leading-[1.08] text-neutral-900">
 
-              Creating Opportunities.{' '}
+              Your Business.{' '}
 
-              <span className="text-[#201E64]">
-                Growing Businesses.
-              </span>
+              <span style={{ color: NAVY }}>
+                Your Opportunity.
+              </span>{' '}
+
+              Your Next Step.
 
             </h1>
 
             {/* Description */}
-            <p className="text-base sm:text-lg text-neutral-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
+            <p className="mt-7 text-base sm:text-lg lg:text-xl text-neutral-600 leading-relaxed max-w-2xl mx-auto lg:mx-0">
 
-              Connect with verified procurement opportunities, structured
-              business support, and supplier development programmes
-              designed to accelerate enterprise growth, build operational
-              capacity, and forge sustainable corporate partnerships.
+              Connect to opportunities, resources and support that can help
+              your business grow and become part of sustainable value chains.
 
             </p>
 
-            {/* ACTION BUTTONS */}
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+            {/* CTA */}
+            <div className="mt-8 flex justify-center lg:justify-start">
 
-              {/* Primary */}
               <button
+                type="button"
                 className="
-                  w-full sm:w-auto
-                  inline-flex items-center justify-center gap-2
-                  px-7 py-3.5
-                  rounded-full
-                  bg-[#201E64]
-                  hover:bg-[#2B2889]
+                  inline-flex items-center justify-center gap-3
+                  px-8 py-4
+                  rounded-none
                   text-white
-                  text-sm font-semibold
+                  text-base font-bold
+                  shadow-md
+                  hover:shadow-lg
                   transition-all duration-200
-                  shadow-sm
-                  hover:shadow-md
-                  active:scale-[0.98]
+                  hover:-translate-y-0.5
+                  active:translate-y-0
                 "
+                style={{ backgroundColor: NAVY }}
               >
-                <span>Get Started</span>
+                <span>Register. Connect. Grow.</span>
 
-                <ArrowRight className="w-4 h-4" />
-
+                <ArrowRight className="w-5 h-5" />
               </button>
-
-              {/* Secondary */}
-              <a
-                href="#how-it-works"
-                className="
-                  w-full sm:w-auto
-                  inline-flex items-center justify-center gap-2
-                  px-6 py-3.5
-                  rounded-full
-                  bg-white
-                  hover:bg-[#201E64]/5
-                  text-[#201E64]
-                  text-sm font-semibold
-                  border border-[#201E64]/20
-                  hover:border-[#201E64]/40
-                  transition-all duration-200
-                "
-              >
-
-                <span>How It Works</span>
-
-                <ChevronDown className="w-4 h-4" />
-
-              </a>
-
-            </div>
-
-            {/* IMPACT STATS */}
-            <div className="pt-8 border-t border-neutral-200">
-
-              <div className="grid grid-cols-3 gap-4 sm:gap-6 text-left">
-
-                {/* Stat 1 */}
-                <div>
-
-                  <div className="text-2xl sm:text-3xl font-extrabold text-[#201E64]">
-                    1,450+
-                  </div>
-
-                  <div className="text-xs text-neutral-500 font-medium mt-1">
-                    Verified Suppliers
-                  </div>
-
-                </div>
-
-                {/* Stat 2 */}
-                <div className="border-l border-neutral-200 pl-4 sm:pl-6">
-
-                  <div className="text-2xl sm:text-3xl font-extrabold text-neutral-900">
-                    R120M+
-                  </div>
-
-                  <div className="text-xs text-neutral-500 font-medium mt-1">
-                    Value Facilitated
-                  </div>
-
-                </div>
-
-                {/* Stat 3 */}
-                <div className="border-l border-neutral-200 pl-4 sm:pl-6">
-
-                  <div className="text-2xl sm:text-3xl font-extrabold text-neutral-900">
-                    94%
-                  </div>
-
-                  <div className="text-xs text-neutral-500 font-medium mt-1">
-                    Retention Rate
-                  </div>
-
-                </div>
-
-              </div>
 
             </div>
 
           </div>
 
-          {/* RIGHT COLUMN - IMAGE */}
-          <div className="lg:col-span-6">
+          {/* RIGHT SIDE - REGISTERED SUPPLIERS */}
+          <div className="lg:col-span-5">
 
-            <div className="relative mx-auto max-w-lg lg:max-w-none">
+            <div
+              className="
+                relative
+                rounded-none
+                p-8 sm:p-10
+                bg-white
+                border
+                shadow-xl
+              "
+              style={{
+                borderColor: `${NAVY}25`
+              }}
+            >
 
-              {/* Navy decorative background */}
-              <div className="absolute -top-4 -right-4 w-full h-full rounded-3xl bg-[#201E64]/10" />
+              {/* Registered Suppliers */}
+              <p className="text-sm font-semibold text-neutral-500 uppercase tracking-wider">
+                Registered Suppliers
+              </p>
 
-              {/* Image container */}
+              {/* Supplier Number */}
               <div
-                className="
-                  relative
-                  rounded-3xl
-                  overflow-hidden
-                  border border-[#201E64]/15
-                  bg-neutral-100
-                  shadow-xl
-                  transition-all duration-300
-                  hover:shadow-2xl
-                "
+                className="mt-4 text-5xl sm:text-6xl font-extrabold"
+                style={{ color: NAVY }}
               >
-
-                <img
-                  src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=1200&q=85"
-                  alt="Entrepreneurs and enterprise leaders collaborating on business growth"
-                  className="w-full h-[400px] sm:h-[480px] object-cover object-center block"
-                  loading="eager"
-                />
-
-                {/* Image overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#201E64]/35 via-transparent to-transparent pointer-events-none" />
-
+                1,450+
               </div>
 
+              {/* Supplier Description */}
+              <p className="mt-3 text-base text-neutral-600 leading-relaxed">
+                Businesses registered on the platform and connected to
+                opportunities, resources and enterprise support.
+              </p>
+
             </div>
+
+          </div>
+
+        </div>
+
+        {/* DISCLAIMER */}
+        <div className="mt-12 pt-6 border-t border-neutral-200">
+
+          <div
+            className="
+              max-w-6xl mx-auto
+              flex items-start gap-4
+              rounded-xl
+              border border-amber-200
+              bg-amber-50
+              px-5 py-4
+              shadow-sm
+            "
+          >
+
+            {/* Attention indicator */}
+            <div
+              className="
+                flex-shrink-0
+                flex items-center justify-center
+                w-8 h-8
+                rounded-full
+                bg-amber-100
+                text-amber-700
+                font-bold
+                text-sm
+              "
+            >
+              !
+            </div>
+
+            {/* Disclaimer text */}
+            <p className="text-xs sm:text-sm text-amber-900 leading-relaxed">
+
+              <span className="font-bold">
+                Please note:
+              </span>{' '}
+
+              Registration on the platform does not guarantee procurement
+              opportunities, contracts, funding or other forms of support.
+              Opportunities and programmes are subject to applicable
+              requirements, business needs and available initiatives.
+
+            </p>
 
           </div>
 

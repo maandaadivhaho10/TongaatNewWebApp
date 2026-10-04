@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, X, ArrowRight } from 'lucide-react';
+import { Menu, X, ArrowRight, Globe } from 'lucide-react';
 
 // Brand navy, same as the login screen: #201E64 (hover: #2B2889)
 
@@ -20,14 +20,15 @@ export default function Navbar() {
   }, []);
 
   const navLinks = [
-    { name: 'Platform Capabilities', href: '#capabilities' },
+    { name: 'Business Opportunities', href: '#opportunities' },
+    { name: 'Funding Opportunities', href: '#funding' },
     { name: 'How It Works', href: '#how-it-works' },
     { name: 'About', href: '#about' },
   ];
 
   const goToSelection = () => {
     setIsMobileMenuOpen(false);
-    navigate('/select-user-type');
+    navigate('/createaccount');
   };
 
   const goToLogin = () => {
@@ -52,7 +53,7 @@ export default function Navbar() {
             className="flex items-center group rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[#201E64]"
           >
             <img
-              src="/Ngabadi-Foods-logo.png"
+              src="/Tongaat-Huletts-Logo.png"
               alt="Tongaat Hulett"
               className="h-10 w-auto object-contain"
             />
@@ -75,14 +76,15 @@ export default function Navbar() {
           <div className="hidden md:flex items-center space-x-3">
             <button
               onClick={goToLogin}
-              className="text-sm font-semibold text-[#201E64] hover:bg-[#201E64]/5 transition-colors px-4 py-2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#201E64]"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[#201E64] hover:bg-[#201E64]/5 transition-colors px-4 py-2 rounded-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#201E64]"
             >
-              Sign In
+              <Globe className="w-4 h-4" aria-hidden="true" />
+              <span>Sign In</span>
             </button>
 
             <button
               onClick={goToSelection}
-              className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-full bg-[#201E64] hover:bg-[#2B2889] text-white text-sm font-semibold transition-all duration-150 shadow-sm hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#201E64] focus-visible:ring-offset-2"
+              className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-none bg-[#201E64] hover:bg-[#2B2889] text-white text-sm font-semibold transition-all duration-150 shadow-sm hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#201E64] focus-visible:ring-offset-2"
             >
               <span>Get Started</span>
               <ArrowRight className="w-4 h-4 text-white" />
@@ -93,7 +95,7 @@ export default function Navbar() {
           <div className="flex md:hidden items-center space-x-2">
             <button
               onClick={goToSelection}
-              className="px-3.5 py-1.5 text-xs font-semibold bg-[#201E64] hover:bg-[#2B2889] text-white rounded-full shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#201E64] focus-visible:ring-offset-2"
+              className="px-3.5 py-1.5 text-xs font-semibold bg-[#201E64] hover:bg-[#2B2889] text-white rounded-none shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#201E64] focus-visible:ring-offset-2"
             >
               Get Started
             </button>
@@ -135,14 +137,15 @@ export default function Navbar() {
           <div className="pt-4 border-t border-neutral-200 space-y-2.5">
             <button
               onClick={goToLogin}
-              className="w-full py-3 text-center text-sm font-semibold text-[#201E64] bg-[#201E64]/5 hover:bg-[#201E64]/10 border border-[#201E64]/20 rounded-full transition-colors"
+              className="w-full inline-flex items-center justify-center gap-2 py-3 text-center text-sm font-semibold text-[#201E64] bg-[#201E64]/5 hover:bg-[#201E64]/10 border border-[#201E64]/20 rounded-none transition-colors"
             >
-              Sign In to Portal
+              <Globe className="w-4 h-4" aria-hidden="true" />
+              <span>Sign In to Portal</span>
             </button>
 
             <button
               onClick={goToSelection}
-              className="w-full py-3 text-center text-sm font-semibold text-white bg-[#201E64] hover:bg-[#2B2889] rounded-full shadow-sm transition-colors"
+              className="w-full py-3 text-center text-sm font-semibold text-white bg-[#201E64] hover:bg-[#2B2889] rounded-none shadow-sm transition-colors"
             >
               Create Business Account
             </button>

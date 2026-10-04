@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   UserPlus,
@@ -66,23 +65,6 @@ export default function HowItWorks() {
         {/* Header */}
         <div className="max-w-3xl mx-auto text-center space-y-4 mb-16">
 
-          <span
-            className="
-              inline-flex items-center
-              px-4 py-2
-              rounded-full
-              bg-[#201E64]/5
-              border border-[#201E64]/10
-              text-[#201E64]
-              text-xs
-              font-semibold
-              uppercase
-              tracking-wider
-            "
-          >
-            Simple 3-Step Process
-          </span>
-
           <h2 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 tracking-tight">
             How the ESD Platform Works
           </h2>
@@ -107,7 +89,7 @@ export default function HowItWorks() {
                   group
                   relative
                   bg-white
-                  rounded-2xl
+                  rounded-none
                   p-8
                   border border-[#201E64]/10
                   hover:border-[#201E64]/25
@@ -139,7 +121,7 @@ export default function HowItWorks() {
                     <div
                       className="
                         w-11 h-11
-                        rounded-xl
+                        rounded-none
                         bg-[#201E64]/5
                         border border-[#201E64]/10
                         flex items-center justify-center
@@ -243,7 +225,7 @@ export default function HowItWorks() {
             p-7
             bg-white
             border border-[#201E64]/10
-            rounded-2xl
+            rounded-none
             text-neutral-900
             shadow-sm
             flex
@@ -276,7 +258,7 @@ export default function HowItWorks() {
               gap-2
               px-6
               py-3
-              rounded-full
+              rounded-none
               bg-[#201E64]
               hover:bg-[#2B2889]
               text-white

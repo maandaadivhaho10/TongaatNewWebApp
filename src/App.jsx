@@ -14,6 +14,11 @@ import Overview from './components/FarmerDashBoard/Overview';
 import Chemicalrequests from './components/FarmerDashBoard/Chemicalrequests'
 import Meetingsworkshops from './components/FarmerDashBoard/Meetingsworkshops'
 import Tonnagesubmission from './components/FarmerDashBoard/Tonnagesubmission'
+import CreateAccount from './components/RegisterSMME/CreateAccount'
+import BissnessOpportunities from './components/LandingComponents/BissnessOpportunities'
+import Fundingopportunities from './components/LandingComponents/Fundingopportunities'
+import Smmedashboard from './components/SMMEDashboard/Smmedashboard'
+
 
 function LandingPage() {
   return (
@@ -28,8 +33,13 @@ function LandingPage() {
         {/* 2. Hero Section */}
         <Hero />
 
-        {/* 4. Platform Capabilities */}
-        <ValueSection />
+             {/* 2. bissness opportunities Section */}
+        <BissnessOpportunities />
+
+
+             {/* 2. Funding  opportunities Section */}
+        <Fundingopportunities />
+
 
         {/* 5. How It Works (3 Steps) */}
         <HowItWorks />
@@ -61,6 +71,11 @@ export default function App() {
       <Route path="/register/smme" element={<SMMERegistration />} />
       <Route path="/register/farmer" element={<FarmerRegistration />} />
       <Route path="/login" element={<Login />} />
+         <Route path="/createaccount" element={<CreateAccount />} />
+         <Route path="/Smmedashboard" element={<Smmedashboard />} />
+
+         
+      
 
       {/* Farmer dashboard: the sidebar and header stay while the page changes */}
       <Route path="/dashboard" element={<DashboardLayout />}>
@@ -74,8 +89,6 @@ export default function App() {
         <Route path="profile" element={<ComingSoon title="Profile" />} />
       </Route>
 
-      {/* Unknown URLs go back to the landing page */}
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
