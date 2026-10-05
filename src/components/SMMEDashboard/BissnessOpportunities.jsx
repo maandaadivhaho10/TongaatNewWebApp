@@ -115,19 +115,24 @@ const TYPE_LABEL = {
 function formatDate(iso) {
   if (!iso) return "Not specified";
 
-  return new Date(iso).toLocaleDateString("en-ZA", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(
+    "en-ZA",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+  );
 }
 
 function daysUntil(iso) {
   if (!iso) return null;
 
+  const today = new Date();
+  const closing = new Date(`${iso}T00:00:00`);
+
   return Math.ceil(
-    (new Date(iso) - new Date()) /
-      (1000 * 60 * 60 * 24)
+    (closing - today) / (1000 * 60 * 60 * 24)
   );
 }
 
@@ -138,12 +143,12 @@ function authHeaders() {
 }
 
 // ======================================================
-// LOAD RFQ / TENDER
+// LOAD DATA
 // ======================================================
 
 async function loadList(url, type) {
   if (USE_DUMMY_DATA) {
-    await delay(400);
+    await delay(300);
 
     const dummy =
       type === "rfq"
@@ -201,28 +206,26 @@ function DocumentViewerModal({
         items-center
         justify-center
         bg-black/60
-        p-2
-        sm:p-4
+        p-3
       "
     >
       <div
         className="
           flex
-          h-[95vh]
+          h-[92vh]
           w-full
           max-w-6xl
           flex-col
           overflow-hidden
           bg-white
           shadow-2xl
-          sm:h-[92vh]
         "
       >
-        {/* Header */}
+        {/* HEADER */}
+
         <div
           className="
             flex
-            shrink-0
             items-start
             justify-between
             gap-3
@@ -230,14 +233,12 @@ function DocumentViewerModal({
             border-neutral-200
             px-4
             py-3
-            sm:px-6
-            sm:py-4
           "
         >
           <div className="min-w-0">
             <p
               className="
-                text-xs
+                text-[10px]
                 font-bold
                 uppercase
                 tracking-wide
@@ -251,9 +252,8 @@ function DocumentViewerModal({
               className="
                 mt-1
                 truncate
-                text-base
+                text-lg
                 font-bold
-                sm:text-xl
               "
               style={{ color: NAVY }}
             >
@@ -264,26 +264,24 @@ function DocumentViewerModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close document"
             className="
               flex
-              h-9
-              w-9
+              h-8
+              w-8
               shrink-0
               items-center
               justify-center
-              text-2xl
+              text-xl
               text-neutral-500
-              transition
               hover:bg-neutral-100
-              hover:text-neutral-900
             "
           >
             ×
           </button>
         </div>
 
-        {/* PDF */}
+        {/* DOCUMENT */}
+
         <div className="min-h-0 flex-1 bg-neutral-100">
           {opportunity.document_url ? (
             <iframe
@@ -292,42 +290,23 @@ function DocumentViewerModal({
               className="h-full w-full border-0"
             />
           ) : (
-            <div
-              className="
-                flex
-                h-full
-                items-center
-                justify-center
-                p-6
-                text-center
-              "
-            >
-              <div>
-                <p className="font-semibold text-neutral-800">
-                  Document unavailable
-                </p>
-
-                <p className="mt-1 text-sm text-neutral-500">
-                  No PDF document is available for this
-                  opportunity.
-                </p>
-              </div>
+            <div className="flex h-full items-center justify-center">
+              <p className="text-sm text-neutral-500">
+                Document unavailable.
+              </p>
             </div>
           )}
         </div>
 
-        {/* Footer */}
+        {/* FOOTER */}
+
         <div
           className="
             flex
-            shrink-0
             justify-end
             border-t
             border-neutral-200
-            bg-white
-            px-4
-            py-3
-            sm:px-6
+            p-3
           "
         >
           <button
@@ -336,12 +315,10 @@ function DocumentViewerModal({
             className="
               border
               border-neutral-300
-              px-5
+              px-4
               py-2
-              text-sm
+              text-xs
               font-semibold
-              text-neutral-700
-              transition
               hover:bg-neutral-50
             "
           >
@@ -354,7 +331,7 @@ function DocumentViewerModal({
 }
 
 // ======================================================
-// RFQ APPLY MODAL
+// RFQ APPLICATION MODAL
 // ======================================================
 
 function RfqApplyModal({
@@ -397,7 +374,7 @@ function RfqApplyModal({
       setSubmitting(true);
 
       if (USE_DUMMY_DATA) {
-        await delay(700);
+        await delay(600);
 
         onApplied(opportunity);
         onClose();
@@ -409,7 +386,10 @@ function RfqApplyModal({
 
       formData.append("rfq_id", opportunity.id);
       formData.append("proposal", proposal);
-      formData.append("quoted_price", quotedPrice);
+      formData.append(
+        "quoted_price",
+        quotedPrice
+      );
       formData.append("document", file);
 
       const response = await fetch(
@@ -457,20 +437,20 @@ function RfqApplyModal({
         justify-center
         bg-black/50
         p-3
-        sm:p-4
       "
     >
       <div
         className="
           max-h-[92vh]
           w-full
-          max-w-2xl
+          max-w-xl
           overflow-y-auto
           bg-white
           shadow-xl
         "
       >
-        {/* Header */}
+        {/* HEADER */}
+
         <div
           className="
             flex
@@ -479,24 +459,19 @@ function RfqApplyModal({
             gap-3
             border-b
             border-neutral-200
-            px-4
-            py-4
-            sm:px-6
-            sm:py-5
+            p-4
           "
         >
-          <div className="min-w-0">
-            <p className="text-sm text-neutral-500">
+          <div>
+            <p className="text-xs text-neutral-500">
               Apply for RFQ
             </p>
 
             <h2
               className="
                 mt-1
-                break-words
                 text-lg
                 font-bold
-                sm:text-xl
               "
               style={{ color: NAVY }}
             >
@@ -507,39 +482,22 @@ function RfqApplyModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
-            className="
-              shrink-0
-              text-2xl
-              text-neutral-500
-              hover:text-neutral-900
-            "
+            className="text-xl text-neutral-500"
           >
             ×
           </button>
         </div>
 
-        {/* Form */}
+        {/* FORM */}
+
         <form
           onSubmit={handleSubmit}
-          className="
-            space-y-5
-            p-4
-            sm:space-y-6
-            sm:p-6
-          "
+          className="space-y-4 p-4"
         >
-          {/* Proposal */}
+          {/* PROPOSAL */}
+
           <div>
-            <label
-              className="
-                mb-2
-                block
-                text-sm
-                font-semibold
-                text-neutral-800
-              "
-            >
+            <label className="mb-1.5 block text-xs font-semibold">
               Proposal
             </label>
 
@@ -548,34 +506,26 @@ function RfqApplyModal({
               onChange={(e) =>
                 setProposal(e.target.value)
               }
-              rows={5}
-              placeholder="Describe your proposal and how your business can deliver the required services..."
+              rows={4}
+              placeholder="Describe your proposal..."
               className="
                 w-full
                 resize-y
                 border
                 border-neutral-300
                 px-3
-                py-3
+                py-2
                 text-sm
                 outline-none
-                sm:px-4
                 focus:border-[#201E64]
               "
             />
           </div>
 
-          {/* Price */}
+          {/* PRICE */}
+
           <div>
-            <label
-              className="
-                mb-2
-                block
-                text-sm
-                font-semibold
-                text-neutral-800
-              "
-            >
+            <label className="mb-1.5 block text-xs font-semibold">
               Quoted Price (R)
             </label>
 
@@ -593,26 +543,18 @@ function RfqApplyModal({
                 border
                 border-neutral-300
                 px-3
-                py-3
+                py-2
                 text-sm
                 outline-none
-                sm:px-4
                 focus:border-[#201E64]
               "
             />
           </div>
 
-          {/* File */}
+          {/* DOCUMENT */}
+
           <div>
-            <label
-              className="
-                mb-2
-                block
-                text-sm
-                font-semibold
-                text-neutral-800
-              "
-            >
+            <label className="mb-1.5 block text-xs font-semibold">
               Quotation Document
             </label>
 
@@ -626,59 +568,41 @@ function RfqApplyModal({
               }
               className="
                 w-full
-                min-w-0
                 border
                 border-neutral-300
-                px-3
-                py-3
-                text-sm
-                sm:px-4
+                p-2
+                text-xs
               "
             />
 
-            <p className="mt-2 text-xs text-neutral-500">
-              Upload your quotation document in PDF
-              or Word format.
+            <p className="mt-1 text-[11px] text-neutral-500">
+              PDF or Word format.
             </p>
 
             {file && (
-              <p
-                className="
-                  mt-2
-                  break-all
-                  text-sm
-                  font-medium
-                  text-neutral-700
-                "
-              >
+              <p className="mt-1 break-all text-xs font-medium">
                 Selected: {file.name}
               </p>
             )}
           </div>
 
-          {/* Error */}
+          {/* ERROR */}
+
           {error && (
-            <div
-              className="
-                border
-                border-red-200
-                bg-red-50
-                px-4
-                py-3
-              "
-            >
-              <p className="text-sm text-red-700">
+            <div className="border border-red-200 bg-red-50 p-2">
+              <p className="text-xs text-red-700">
                 {error}
               </p>
             </div>
           )}
 
-          {/* Buttons */}
+          {/* BUTTONS */}
+
           <div
             className="
               flex
               flex-col-reverse
-              gap-3
+              gap-2
               border-t
               pt-4
               sm:flex-row
@@ -689,15 +613,13 @@ function RfqApplyModal({
               type="button"
               onClick={onClose}
               className="
-                w-full
                 border
                 border-neutral-300
-                px-5
-                py-2.5
-                text-sm
+                px-4
+                py-2
+                text-xs
                 font-semibold
                 hover:bg-neutral-50
-                sm:w-auto
               "
             >
               Cancel
@@ -707,14 +629,12 @@ function RfqApplyModal({
               type="submit"
               disabled={submitting}
               className="
-                w-full
-                px-6
-                py-2.5
-                text-sm
+                px-5
+                py-2
+                text-xs
                 font-semibold
                 text-white
                 disabled:opacity-50
-                sm:w-auto
               "
               style={{
                 backgroundColor: NAVY,
@@ -733,7 +653,7 @@ function RfqApplyModal({
 
 // ======================================================
 // OPPORTUNITY CARD
-// SEE MORE / SEE LESS ADDED
+// COMPACT VERSION
 // ======================================================
 
 function OpportunityCard({
@@ -758,9 +678,10 @@ function OpportunityCard({
   const isTender = item.type === "tender";
 
   const description =
-    item.description || "No description provided.";
+    item.description ||
+    "No description provided.";
 
-  const DESCRIPTION_LIMIT = 110;
+  const DESCRIPTION_LIMIT = 90;
 
   const isLongDescription =
     description.length > DESCRIPTION_LIMIT;
@@ -786,7 +707,6 @@ function OpportunityCard({
         shadow-sm
         transition
         duration-200
-        hover:-translate-y-1
         hover:shadow-md
       "
     >
@@ -797,28 +717,21 @@ function OpportunityCard({
           flex-1
           flex-col
           p-4
-          sm:p-5
-          lg:p-6
         "
       >
-        {/* Badges */}
-        <div
-          className="
-            mb-3
-            flex
-            flex-wrap
-            items-center
-            gap-2
-          "
-        >
+        {/* BADGES */}
+
+        <div className="mb-2 flex flex-wrap items-center gap-2">
           <span
             className="
               inline-flex
               items-center
-              px-2.5
+              px-2
               py-1
-              text-xs
-              font-semibold
+              text-[10px]
+              font-bold
+              uppercase
+              tracking-wide
               text-white
             "
             style={{
@@ -836,50 +749,49 @@ function OpportunityCard({
                 inline-flex
                 items-center
                 bg-amber-100
-                px-2.5
+                px-2
                 py-1
-                text-xs
+                text-[10px]
                 font-semibold
                 text-amber-800
               "
             >
               Closes in {daysLeft}{" "}
-              {daysLeft === 1 ? "day" : "days"}
+              {daysLeft === 1
+                ? "day"
+                : "days"}
             </span>
           )}
         </div>
 
-        {/* Title */}
+        {/* TITLE */}
+
         <h3
           className="
             break-words
             text-base
             font-bold
-            leading-6
-            sm:text-lg
+            leading-5
           "
           style={{ color: NAVY }}
         >
           {item.title}
         </h3>
 
-        {/* ==================================================
-            DESCRIPTION
-        ================================================== */}
+        {/* DESCRIPTION */}
 
-        <div className="mt-3">
+        <div className="mt-2">
           <p
             className="
               break-words
-              text-sm
-              leading-6
-              text-neutral-600
+              text-xs
+              leading-5
+              text-neutral-500
             "
           >
             {displayedDescription}
           </p>
 
-          {/* Only show See More when description is long */}
           {isLongDescription && (
             <button
               type="button"
@@ -888,16 +800,11 @@ function OpportunityCard({
                   (previous) => !previous
                 )
               }
-              aria-expanded={showFullDescription}
               className="
                 mt-1
-                inline-flex
-                items-center
-                text-sm
+                text-xs
                 font-semibold
-                transition
                 hover:underline
-                focus:outline-none
               "
               style={{ color: NAVY }}
             >
@@ -908,83 +815,89 @@ function OpportunityCard({
           )}
         </div>
 
-        {/* Details */}
+        {/* DETAILS */}
+
         <dl
           className="
-            mt-5
+            mt-3
             space-y-2
             border-t
             border-neutral-100
-            pt-4
-            text-sm
+            pt-3
           "
         >
-          {/* Location */}
-          <div
-            className="
-              flex
-              flex-wrap
-              gap-x-2
-              gap-y-1
-            "
-          >
-            <dt className="shrink-0 text-neutral-500">
-              Location:
+          {/* LOCATION */}
+
+          <div className="flex items-start gap-3">
+            <dt
+              className="
+                w-16
+                shrink-0
+                text-[10px]
+                font-bold
+                uppercase
+                tracking-wide
+                text-neutral-400
+              "
+            >
+              Location
             </dt>
 
             <dd
               className="
                 min-w-0
                 break-words
+                text-xs
                 font-medium
-                text-neutral-800
+                text-neutral-700
               "
             >
-              {item.location || "Not specified"}
+              {item.location ||
+                "Not specified"}
             </dd>
           </div>
 
-          {/* Closing */}
-          <div
-            className="
-              flex
-              flex-wrap
-              gap-x-2
-              gap-y-1
-            "
-          >
-            <dt className="shrink-0 text-neutral-500">
-              Closes:
+          {/* CLOSING */}
+
+          <div className="flex items-start gap-3">
+            <dt
+              className="
+                w-16
+                shrink-0
+                text-[10px]
+                font-bold
+                uppercase
+                tracking-wide
+                text-neutral-400
+              "
+            >
+              Closes
             </dt>
 
-            <dd className="font-medium text-neutral-800">
+            <dd className="text-xs font-medium text-neutral-700">
               {formatDate(item.closing)}
             </dd>
           </div>
         </dl>
 
-        {/* Value */}
+        {/* VALUE */}
+
         <div
           className="
-            mt-4
+            mt-3
             border-t
             border-neutral-100
-            pt-4
+            pt-3
           "
         >
-          <p
-            className="
-              break-words
-              text-sm
-              font-semibold
-              text-neutral-900
-            "
-          >
-            {item.value || "Value not specified"}
+          <p className="text-xs font-bold text-neutral-900">
+            {item.value ||
+              "Value not specified"}
           </p>
         </div>
 
-        {/* Error */}
+        {/* ERROR */}
+
         {error && (
           <div
             className="
@@ -999,7 +912,7 @@ function OpportunityCard({
             <p
               className="
                 break-words
-                text-sm
+                text-xs
                 text-red-700
               "
               role="alert"
@@ -1009,40 +922,37 @@ function OpportunityCard({
           </div>
         )}
 
-        {/* Actions */}
+        {/* ACTIONS */}
+
         <div
           className="
             mt-auto
             flex
-            flex-col
             gap-2
-            pt-5
-            sm:flex-row
-            sm:gap-3
+            pt-4
           "
         >
           {/* VIEW DOCUMENT */}
+
           <button
             type="button"
             onClick={() => onView(item)}
             disabled={!item.document_url}
             className="
               flex
-              min-h-[44px]
-              w-full
+              flex-1
               items-center
               justify-center
               border
-              px-3
-              py-2.5
+              px-2
+              py-2
               text-center
-              text-sm
-              font-semibold
+              text-xs
+              font-bold
               transition
               hover:bg-[#201E64]/5
               disabled:cursor-not-allowed
               disabled:opacity-40
-              sm:flex-1
             "
             style={{
               borderColor: NAVY,
@@ -1053,27 +963,28 @@ function OpportunityCard({
           </button>
 
           {/* APPLY */}
+
           {isTender ? (
             <button
               type="button"
               disabled={applied || applying}
-              onClick={() => onApplyTender(item)}
+              onClick={() =>
+                onApplyTender(item)
+              }
               className="
                 flex
-                min-h-[44px]
-                w-full
+                flex-1
                 items-center
                 justify-center
-                px-4
-                py-2.5
-                text-sm
-                font-semibold
+                px-3
+                py-2
+                text-xs
+                font-bold
                 text-white
                 transition
                 hover:opacity-90
                 disabled:cursor-not-allowed
                 disabled:opacity-60
-                sm:flex-1
               "
               style={{
                 backgroundColor: applied
@@ -1091,23 +1002,23 @@ function OpportunityCard({
             <button
               type="button"
               disabled={applied}
-              onClick={() => onApplyRfq(item)}
+              onClick={() =>
+                onApplyRfq(item)
+              }
               className="
                 flex
-                min-h-[44px]
-                w-full
+                flex-1
                 items-center
                 justify-center
-                px-4
-                py-2.5
-                text-sm
-                font-semibold
+                px-3
+                py-2
+                text-xs
+                font-bold
                 text-white
                 transition
                 hover:opacity-90
                 disabled:cursor-not-allowed
                 disabled:opacity-60
-                sm:flex-1
               "
               style={{
                 backgroundColor: applied
@@ -1115,7 +1026,9 @@ function OpportunityCard({
                   : NAVY,
               }}
             >
-              {applied ? "Applied" : "Apply"}
+              {applied
+                ? "Applied"
+                : "Apply"}
             </button>
           )}
         </div>
@@ -1160,7 +1073,7 @@ export default function Opportunities() {
     `${item.type}-${item.id}`;
 
   // ======================================================
-  // LOAD DATA
+  // LOAD
   // ======================================================
 
   useEffect(() => {
@@ -1333,37 +1246,23 @@ export default function Opportunities() {
           w-full
           overflow-x-hidden
           bg-[#F5F6FA]
-          pt-3
           pb-10
           text-neutral-900
-          sm:pt-5
-          sm:pb-12
-          lg:pt-6
-          lg:pb-16
         "
       >
-        <div
-          className="
-            mx-auto
-            w-full
-            max-w-7xl
-            px-3
-            sm:px-5
-            lg:px-6
-          "
-        >
+        <div className="mx-auto w-full max-w-7xl">
+
           {/* ==================================================
-              HEADING
+              HEADER
           ================================================== */}
 
-          <div className="max-w-2xl">
+          <div>
             <h2
               className="
                 text-2xl
                 font-extrabold
                 tracking-tight
                 sm:text-3xl
-                lg:text-4xl
               "
               style={{ color: NAVY }}
             >
@@ -1372,13 +1271,11 @@ export default function Opportunities() {
 
             <p
               className="
-                mt-2
+                mt-1
                 max-w-xl
                 text-sm
                 leading-6
-                text-neutral-600
-                sm:mt-3
-                sm:text-base
+                text-neutral-500
               "
             >
               Browse current RFQs and tenders open to
@@ -1402,8 +1299,6 @@ export default function Opportunities() {
               overflow-x-auto
               border-b
               border-neutral-200
-              sm:mt-6
-              sm:gap-2
             "
           >
             {TABS.map((tab) => {
@@ -1423,11 +1318,10 @@ export default function Opportunities() {
                     -mb-px
                     shrink-0
                     border-b-2
-                    px-3
-                    py-3
+                    px-4
+                    py-2.5
                     text-sm
                     font-semibold
-                    sm:px-4
 
                     ${
                       active
@@ -1446,14 +1340,7 @@ export default function Opportunities() {
                 >
                   {tab.label}
 
-                  <span
-                    className="
-                      ml-2
-                      text-xs
-                      font-medium
-                      text-neutral-500
-                    "
-                  >
+                  <span className="ml-2 text-xs font-medium text-neutral-500">
                     {counts[tab.key]}
                   </span>
                 </button>
@@ -1468,15 +1355,14 @@ export default function Opportunities() {
           {loadErrors.map((message) => (
             <div
               key={message}
-              role="alert"
               className="
-                mt-5
+                mt-4
                 border
                 border-red-200
                 bg-red-50
-                px-4
-                py-3
-                text-sm
+                px-3
+                py-2
+                text-xs
                 text-red-700
               "
             >
@@ -1485,11 +1371,11 @@ export default function Opportunities() {
           ))}
 
           {/* ==================================================
-              OPPORTUNITIES
+              CARDS
           ================================================== */}
 
           {loading ? (
-            <div className="mt-6">
+            <div className="mt-5">
               <p className="text-sm text-neutral-500">
                 Loading opportunities...
               </p>
@@ -1502,9 +1388,8 @@ export default function Opportunities() {
                 grid-cols-1
                 items-start
                 gap-4
-                sm:gap-5
                 md:grid-cols-2
-                2xl:grid-cols-3
+                xl:grid-cols-3
               "
             >
               {visible.map((item) => (
@@ -1535,9 +1420,8 @@ export default function Opportunities() {
                 border
                 border-neutral-200
                 bg-white
-                p-6
+                p-8
                 text-center
-                sm:p-10
               "
             >
               <p className="font-semibold text-neutral-900">
@@ -1555,7 +1439,7 @@ export default function Opportunities() {
       </section>
 
       {/* ==================================================
-          PDF DOCUMENT VIEWER
+          DOCUMENT
       ================================================== */}
 
       {documentItem && (

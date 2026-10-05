@@ -1,4 +1,5 @@
 import React from "react";
+
 import {
   Building2,
   BriefcaseBusiness,
@@ -19,6 +20,7 @@ const NAVY = "#201E64";
 
 const PROFILE = {
   businessName: "Maanda Business Solutions",
+
   completion: 70,
 
   completedItems: [
@@ -84,6 +86,7 @@ const OPPORTUNITIES = [
 
 function ProfileProgress({ percentage }) {
   const radius = 80;
+
   const circumference = Math.PI * radius;
 
   const progress =
@@ -91,31 +94,44 @@ function ProfileProgress({ percentage }) {
     (percentage / 100) * circumference;
 
   return (
-    <div className="relative mx-auto w-full max-w-[280px]">
+    <div
+      className="
+        relative
+        mx-auto
+        w-full
+        max-w-[210px]
+      "
+    >
       <svg
         viewBox="0 0 200 115"
         className="w-full"
+        role="img"
+        aria-label={`${percentage}% registration complete`}
       >
-        {/* Background */}
+        {/* BACKGROUND */}
+
         <path
           d="M20 100 A80 80 0 0 1 180 100"
           fill="none"
           stroke="#E5E7EB"
-          strokeWidth="16"
+          strokeWidth="13"
           strokeLinecap="round"
         />
 
-        {/* Progress */}
+        {/* PROGRESS */}
+
         <path
           d="M20 100 A80 80 0 0 1 180 100"
           fill="none"
           stroke={NAVY}
-          strokeWidth="16"
+          strokeWidth="13"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={progress}
         />
       </svg>
+
+      {/* PERCENTAGE */}
 
       <div
         className="
@@ -127,13 +143,24 @@ function ProfileProgress({ percentage }) {
         "
       >
         <p
-          className="text-3xl font-extrabold sm:text-4xl"
+          className="
+            text-2xl
+            font-extrabold
+            sm:text-3xl
+          "
           style={{ color: NAVY }}
         >
           {percentage}%
         </p>
 
-        <p className="mt-1 text-xs font-medium text-neutral-500">
+        <p
+          className="
+            mt-0.5
+            text-[10px]
+            font-medium
+            text-neutral-500
+          "
+        >
           Complete
         </p>
       </div>
@@ -145,7 +172,9 @@ function ProfileProgress({ percentage }) {
 // DASHBOARD
 // ======================================================
 
-export default function DashboardScreen({ onNavigate }) {
+export default function DashboardScreen({
+  onNavigate,
+}) {
   return (
     <div className="w-full">
 
@@ -153,7 +182,7 @@ export default function DashboardScreen({ onNavigate }) {
           WELCOME
       ================================================== */}
 
-      <div className="mb-7">
+      <div className="mb-5">
         <h1
           className="
             text-2xl
@@ -166,14 +195,21 @@ export default function DashboardScreen({ onNavigate }) {
           Welcome back
         </h1>
 
-        <p className="mt-2 text-sm text-neutral-500 sm:text-base">
-          View your company registration progress and current
-          business opportunities.
+        <p
+          className="
+            mt-1
+            text-sm
+            leading-5
+            text-neutral-500
+          "
+        >
+          View your company registration progress and
+          current business opportunities.
         </p>
       </div>
 
       {/* ==================================================
-          COMPANY REGISTRATION - FULL WIDTH
+          COMPANY REGISTRATION
       ================================================== */}
 
       <section
@@ -182,19 +218,21 @@ export default function DashboardScreen({ onNavigate }) {
           border
           border-neutral-200
           bg-white
-          p-5
+          p-4
           shadow-sm
-          sm:p-6
-          lg:p-8
+          sm:p-5
         "
       >
-        {/* Header */}
+        {/* ==================================================
+            HEADER
+        ================================================== */}
+
         <div className="flex items-start gap-3">
           <div
             className="
               flex
-              h-11
-              w-11
+              h-9
+              w-9
               shrink-0
               items-center
               justify-center
@@ -202,40 +240,58 @@ export default function DashboardScreen({ onNavigate }) {
             "
           >
             <Building2
-              className="h-5 w-5"
+              className="h-4 w-4"
               style={{ color: NAVY }}
             />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <h2
-              className="text-lg font-bold sm:text-xl"
+              className="
+                text-base
+                font-bold
+                sm:text-lg
+              "
               style={{ color: NAVY }}
             >
               Company Registration
             </h2>
 
-            <p className="mt-1 text-sm leading-6 text-neutral-500">
-              Complete your company registration and business
-              documents to improve your readiness for ESD
-              opportunities.
+            <p
+              className="
+                mt-1
+                max-w-2xl
+                text-xs
+                leading-5
+                text-neutral-500
+              "
+            >
+              Complete your company registration and
+              business documents to improve your readiness
+              for ESD opportunities.
             </p>
           </div>
         </div>
 
-        {/* Progress Content */}
+        {/* ==================================================
+            PROGRESS CONTENT
+        ================================================== */}
+
         <div
           className="
-            mt-8
+            mt-5
             grid
             grid-cols-1
             items-center
-            gap-8
-            lg:grid-cols-[320px_1fr]
-            lg:gap-12
+            gap-5
+            lg:grid-cols-[220px_1fr]
+            lg:gap-6
           "
         >
-          {/* LEFT - Progress */}
+          {/* ==================================================
+              LEFT - PROGRESS
+          ================================================== */}
+
           <div>
             <ProfileProgress
               percentage={PROFILE.completion}
@@ -244,11 +300,11 @@ export default function DashboardScreen({ onNavigate }) {
             <p
               className="
                 mx-auto
-                mt-5
-                max-w-xs
+                mt-3
+                max-w-[220px]
                 text-center
-                text-sm
-                leading-6
+                text-xs
+                leading-5
                 text-neutral-500
               "
             >
@@ -259,147 +315,225 @@ export default function DashboardScreen({ onNavigate }) {
             </p>
           </div>
 
-          {/* RIGHT */}
+          {/* ==================================================
+              RIGHT
+          ================================================== */}
+
           <div className="min-w-0">
-            <h3 className="text-base font-bold text-neutral-900">
+            <h3
+              className="
+                text-sm
+                font-bold
+                text-neutral-900
+              "
+            >
               Registration Progress
             </h3>
 
-            <p className="mt-1 text-sm text-neutral-500">
-              Review your completed information and finish the
-              remaining registration requirements.
+            <p
+              className="
+                mt-1
+                text-xs
+                leading-5
+                text-neutral-500
+              "
+            >
+              Review your completed information and finish
+              the remaining registration requirements.
             </p>
 
-            {/* Completed + Missing */}
+            {/* ==================================================
+                COMPLETED + MISSING
+            ================================================== */}
+
             <div
               className="
-                mt-5
+                mt-3
                 grid
                 grid-cols-1
-                gap-5
+                gap-3
                 md:grid-cols-2
               "
             >
-              {/* Completed */}
+              {/* ==================================================
+                  COMPLETED
+              ================================================== */}
+
               <div
                 className="
                   border
                   border-neutral-200
-                  p-4
-                  sm:p-5
+                  p-3
                 "
               >
-                <p className="text-sm font-bold text-neutral-900">
+                <p
+                  className="
+                    text-xs
+                    font-bold
+                    text-neutral-900
+                  "
+                >
                   Completed
                 </p>
 
-                <div className="mt-4 space-y-3">
-                  {PROFILE.completedItems.map((item) => (
-                    <div
-                      key={item}
-                      className="flex items-start gap-3"
-                    >
-                      <CheckCircle2
+                <div className="mt-2 space-y-2">
+                  {PROFILE.completedItems.map(
+                    (item) => (
+                      <div
+                        key={item}
                         className="
-                          mt-0.5
-                          h-4
-                          w-4
-                          shrink-0
-                          text-green-600
+                          flex
+                          items-start
+                          gap-2
                         "
-                      />
+                      >
+                        <CheckCircle2
+                          className="
+                            mt-0.5
+                            h-3.5
+                            w-3.5
+                            shrink-0
+                            text-green-600
+                          "
+                        />
 
-                      <span className="text-sm text-neutral-600">
-                        {item}
-                      </span>
-                    </div>
-                  ))}
+                        <span
+                          className="
+                            text-xs
+                            leading-5
+                            text-neutral-600
+                          "
+                        >
+                          {item}
+                        </span>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
 
-              {/* Remaining */}
+              {/* ==================================================
+                  STILL REQUIRED
+              ================================================== */}
+
               <div
                 className="
                   border
                   border-amber-200
                   bg-amber-50
-                  p-4
-                  sm:p-5
+                  p-3
                 "
               >
-                <div className="flex items-start gap-3">
+                <div
+                  className="
+                    flex
+                    items-start
+                    gap-2
+                  "
+                >
                   <AlertCircle
                     className="
                       mt-0.5
-                      h-5
-                      w-5
+                      h-4
+                      w-4
                       shrink-0
                       text-amber-600
                     "
                   />
 
                   <div>
-                    <p className="text-sm font-bold text-amber-900">
+                    <p
+                      className="
+                        text-xs
+                        font-bold
+                        text-amber-900
+                      "
+                    >
                       Still required
                     </p>
 
-                    <p className="mt-1 text-xs leading-5 text-amber-800">
-                      Complete the following information to finish
-                      your company registration.
+                    <p
+                      className="
+                        mt-0.5
+                        text-[11px]
+                        leading-4
+                        text-amber-800
+                      "
+                    >
+                      Complete the following information to
+                      finish your company registration.
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-4 space-y-3">
-                  {PROFILE.missingItems.map((item) => (
-                    <div
-                      key={item}
-                      className="flex items-center gap-2"
-                    >
-                      <span
+                <div className="mt-2 space-y-2">
+                  {PROFILE.missingItems.map(
+                    (item) => (
+                      <div
+                        key={item}
                         className="
-                          h-1.5
-                          w-1.5
-                          shrink-0
-                          rounded-full
-                          bg-amber-600
+                          flex
+                          items-center
+                          gap-2
                         "
-                      />
+                      >
+                        <span
+                          className="
+                            h-1.5
+                            w-1.5
+                            shrink-0
+                            rounded-full
+                            bg-amber-600
+                          "
+                        />
 
-                      <span className="text-sm text-amber-900">
-                        {item}
-                      </span>
-                    </div>
-                  ))}
+                        <span
+                          className="
+                            text-xs
+                            text-amber-900
+                          "
+                        >
+                          {item}
+                        </span>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Continue */}
-            <div className="mt-6">
+            {/* ==================================================
+                CONTINUE
+            ================================================== */}
+
+            <div className="mt-4">
               <button
                 type="button"
-                onClick={() => onNavigate?.("profile")}
+                onClick={() =>
+                  onNavigate?.("profile")
+                }
                 className="
                   inline-flex
                   w-full
                   items-center
                   justify-center
                   gap-2
-                  px-6
-                  py-3
-                  text-sm
+                  px-4
+                  py-2
+                  text-xs
                   font-semibold
                   text-white
                   transition
                   hover:opacity-90
                   sm:w-auto
                 "
-                style={{ backgroundColor: NAVY }}
+                style={{
+                  backgroundColor: NAVY,
+                }}
               >
                 Continue Registration
 
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
@@ -410,52 +544,72 @@ export default function DashboardScreen({ onNavigate }) {
           BUSINESS OPPORTUNITIES
       ================================================== */}
 
-      <section className="mt-8">
+      <section className="mt-6">
 
-        {/* Header */}
+        {/* ==================================================
+            HEADER
+        ================================================== */}
+
         <div
           className="
             flex
             flex-col
-            gap-3
+            gap-2
             sm:flex-row
             sm:items-end
             sm:justify-between
           "
         >
-          <div>
-            <div className="flex items-center gap-3">
-              <div
+          <div
+            className="
+              flex
+              items-center
+              gap-3
+            "
+          >
+            <div
+              className="
+                flex
+                h-9
+                w-9
+                shrink-0
+                items-center
+                justify-center
+                bg-[#201E64]/10
+              "
+            >
+              <BriefcaseBusiness
+                className="h-4 w-4"
+                style={{ color: NAVY }}
+              />
+            </div>
+
+            <div>
+              <h2
                 className="
-                  flex
-                  h-10
-                  w-10
-                  items-center
-                  justify-center
-                  bg-[#201E64]/10
+                  text-lg
+                  font-bold
+                  sm:text-xl
+                "
+                style={{ color: NAVY }}
+              >
+                Available Business Opportunities
+              </h2>
+
+              <p
+                className="
+                  mt-0.5
+                  text-xs
+                  text-neutral-500
                 "
               >
-                <BriefcaseBusiness
-                  className="h-5 w-5"
-                  style={{ color: NAVY }}
-                />
-              </div>
-
-              <div>
-                <h2
-                  className="text-xl font-bold sm:text-2xl"
-                  style={{ color: NAVY }}
-                >
-                  Available Business Opportunities
-                </h2>
-
-                <p className="mt-1 text-sm text-neutral-500">
-                  Latest RFQs and tenders available to your
-                  business.
-                </p>
-              </div>
+                Latest RFQs and tenders available to your
+                business.
+              </p>
             </div>
           </div>
+
+          {/* VIEW ALL */}
 
           <button
             type="button"
@@ -465,8 +619,8 @@ export default function DashboardScreen({ onNavigate }) {
             className="
               inline-flex
               items-center
-              gap-2
-              text-sm
+              gap-1.5
+              text-xs
               font-semibold
               hover:underline
             "
@@ -474,20 +628,21 @@ export default function DashboardScreen({ onNavigate }) {
           >
             View all opportunities
 
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
 
         {/* ==================================================
-            4 OPPORTUNITY CARDS
+            OPPORTUNITY CARDS
         ================================================== */}
 
         <div
           className="
-            mt-5
+            mt-4
             grid
             grid-cols-1
-            gap-4
+            items-stretch
+            gap-3
             md:grid-cols-2
             xl:grid-cols-4
           "
@@ -507,23 +662,27 @@ export default function DashboardScreen({ onNavigate }) {
                     border
                     border-neutral-200
                     bg-white
-                    p-5
+                    p-4
                     shadow-sm
                     transition
                     duration-200
-                    hover:-translate-y-1
                     hover:shadow-md
                   "
                 >
-                  {/* Type */}
+                  {/* ==========================================
+                      TYPE
+                  ========================================== */}
+
                   <div>
                     <span
                       className="
                         inline-flex
-                        px-2.5
+                        px-2
                         py-1
-                        text-xs
+                        text-[10px]
                         font-bold
+                        uppercase
+                        tracking-wide
                         text-white
                       "
                       style={{
@@ -536,70 +695,123 @@ export default function DashboardScreen({ onNavigate }) {
                     </span>
                   </div>
 
-                  {/* Title */}
+                  {/* ==========================================
+                      TITLE
+                  ========================================== */}
+
                   <h3
                     className="
-                      mt-4
-                      text-base
+                      mt-2
+                      text-sm
                       font-bold
-                      leading-6
+                      leading-5
                     "
                     style={{ color: NAVY }}
                   >
                     {opportunity.title}
                   </h3>
 
-                  {/* Description */}
+                  {/* ==========================================
+                      DESCRIPTION
+                  ========================================== */}
+
                   <p
                     className="
-                      mt-2
-                      line-clamp-3
-                      text-sm
-                      leading-6
+                      mt-1.5
+                      line-clamp-2
+                      text-xs
+                      leading-5
                       text-neutral-500
                     "
                   >
                     {opportunity.description}
                   </p>
 
-                  {/* Details */}
-                  <div className="mt-5 space-y-3">
-                    <div className="flex items-center gap-2">
+                  {/* ==========================================
+                      DETAILS
+                  ========================================== */}
+
+                  <div
+                    className="
+                      mt-3
+                      space-y-2
+                      border-t
+                      border-neutral-100
+                      pt-3
+                    "
+                  >
+                    {/* LOCATION */}
+
+                    <div
+                      className="
+                        flex
+                        items-start
+                        gap-2
+                      "
+                    >
                       <MapPin
                         className="
-                          h-4
-                          w-4
+                          mt-0.5
+                          h-3.5
+                          w-3.5
                           shrink-0
                           text-neutral-400
                         "
                       />
 
-                      <span className="text-xs text-neutral-600">
+                      <span
+                        className="
+                          text-[11px]
+                          leading-4
+                          text-neutral-600
+                        "
+                      >
                         {opportunity.location}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    {/* CLOSING DATE */}
+
+                    <div
+                      className="
+                        flex
+                        items-start
+                        gap-2
+                      "
+                    >
                       <CalendarDays
                         className="
-                          h-4
-                          w-4
+                          mt-0.5
+                          h-3.5
+                          w-3.5
                           shrink-0
                           text-neutral-400
                         "
                       />
 
-                      <span className="text-xs text-neutral-600">
-                        Closes {opportunity.closing}
+                      <span
+                        className="
+                          text-[11px]
+                          leading-4
+                          text-neutral-600
+                        "
+                      >
+                        Closes{" "}
+                        {opportunity.closing}
                       </span>
                     </div>
                   </div>
 
-                  {/* View */}
+                  {/* ==========================================
+                      VIEW BUTTON
+                  ========================================== */}
+
                   <button
                     type="button"
                     onClick={() =>
-                      onNavigate?.("opportunities")
+                      onNavigate?.(
+                        "opportunities"
+                      )
                     }
                     className="
                       mt-auto
@@ -607,12 +819,12 @@ export default function DashboardScreen({ onNavigate }) {
                       w-full
                       items-center
                       justify-center
-                      gap-2
+                      gap-1.5
                       border
-                      px-4
-                      py-2.5
-                      pt-2.5
-                      text-sm
+                      px-3
+                      py-2
+                      pt-2
+                      text-xs
                       font-semibold
                       transition
                       hover:bg-[#201E64]/5
@@ -620,10 +832,10 @@ export default function DashboardScreen({ onNavigate }) {
                     style={{
                       borderColor: NAVY,
                       color: NAVY,
-                      marginTop: "20px",
+                      marginTop: "14px",
                     }}
                   >
-                    <FileText className="h-4 w-4" />
+                    <FileText className="h-3.5 w-3.5" />
 
                     View Opportunity
                   </button>

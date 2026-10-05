@@ -10,6 +10,7 @@ import {
   MessagesSquare,
   CircleHelp,
   Headphones,
+  CalendarDays,
 } from "lucide-react";
 
 import { useState } from "react";
@@ -23,6 +24,7 @@ import CompanyProfileScreen from "./Companyregistration";
 import BusinessOpportunitiesScreen from "./BissnessOpportunities";
 import FundingOpportunitiesScreen from "./FundingOpportunitiesScreen";
 import BusinessAdvisoryScreen from "./BusinessAdvisoryScreen";
+import MeetingsScreen from "./Meetings";
 import FAQScreen from "./FAQScreen";
 import ContactUsScreen from "./ContactUsScreen";
 
@@ -73,6 +75,17 @@ const NAV = [
     label: "Funding Opportunities",
     icon: HandCoins,
   },
+
+  // ====================================================
+  // MEETINGS & WORKSHOPS
+  // ====================================================
+
+  {
+    id: "meetings",
+    label: "Meetings & Workshops",
+    icon: CalendarDays,
+  },
+
   {
     id: "advisory",
     label: "Request Business Advisory",
@@ -108,7 +121,6 @@ export default function SmmeDashboard() {
     setActive(id);
     setNavOpen(false);
 
-    // Scroll main content/page back to top
     window.scrollTo({
       top: 0,
       behavior: "smooth",
@@ -148,9 +160,11 @@ export default function SmmeDashboard() {
         <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
 
           {/* LEFT */}
+
           <div className="flex items-center gap-3">
 
             {/* MOBILE MENU */}
+
             <button
               type="button"
               onClick={() => setNavOpen((open) => !open)}
@@ -171,6 +185,7 @@ export default function SmmeDashboard() {
             </button>
 
             {/* LOGO */}
+
             <img
               src="/Tongaat-Huletts-Logo.png"
               alt="Tongaat Hulett"
@@ -179,6 +194,7 @@ export default function SmmeDashboard() {
           </div>
 
           {/* RIGHT */}
+
           <div className="flex items-center gap-4">
 
             <div className="hidden text-right leading-tight sm:block">
@@ -195,6 +211,7 @@ export default function SmmeDashboard() {
             </div>
 
             {/* LOGOUT */}
+
             <button
               type="button"
               onClick={handleLogout}
@@ -308,36 +325,51 @@ export default function SmmeDashboard() {
           <div className="mx-auto max-w-6xl">
 
             {/* DASHBOARD */}
+
             {active === "dashboard" && (
               <DashboardScreen />
             )}
 
             {/* COMPANY REGISTRATION */}
+
             {active === "profile" && (
               <CompanyProfileScreen />
             )}
 
             {/* BUSINESS OPPORTUNITIES */}
+
             {active === "opportunities" && (
               <BusinessOpportunitiesScreen />
             )}
 
             {/* FUNDING OPPORTUNITIES */}
+
             {active === "funding" && (
               <FundingOpportunitiesScreen />
             )}
 
+            {/* =================================================
+                MEETINGS & WORKSHOPS
+            ================================================= */}
+
+            {active === "meetings" && (
+              <MeetingsScreen />
+            )}
+
             {/* BUSINESS ADVISORY */}
+
             {active === "advisory" && (
               <BusinessAdvisoryScreen />
             )}
 
             {/* FAQ */}
+
             {active === "faq" && (
               <FAQScreen />
             )}
 
             {/* CONTACT */}
+
             {active === "contact" && (
               <ContactUsScreen />
             )}
