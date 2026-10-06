@@ -47,10 +47,15 @@ function FloatingInput({
               sm:h-13
               sm:pl-5
             `,
-            trailing ? "pr-11 sm:pr-12" : "pr-4 sm:pr-5",
-
+            trailing
+              ? "pr-11 sm:pr-12"
+              : "pr-4 sm:pr-5",
             error
-              ? "border-red-500 focus:ring-1 focus:ring-red-200"
+              ? `
+                  border-red-500
+                  focus:ring-1
+                  focus:ring-red-200
+                `
               : `
                   border-neutral-300
                   hover:border-neutral-400
@@ -76,13 +81,11 @@ function FloatingInput({
               duration-150
               sm:left-5
             `,
-
             `
               peer-focus:top-2
               peer-focus:translate-y-0
               peer-focus:text-[10px]
             `,
-
             `
               peer-[:not(:placeholder-shown)]:top-2
               peer-[:not(:placeholder-shown)]:translate-y-0
@@ -166,10 +169,19 @@ function GoogleIcon() {
 export default function Login() {
   const navigate = useNavigate();
 
+  // ======================================================
+  // STATE
+  // ======================================================
+
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [staySignedIn, setStaySignedIn] = useState(false);
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [staySignedIn, setStaySignedIn] =
+    useState(false);
+
   const [errors, setErrors] = useState({});
 
   // ======================================================
@@ -181,9 +193,16 @@ export default function Login() {
 
     const next = {};
 
-    if (!identifier.trim()) {
-      next.identifier =
-        "Enter your email or phone number";
+    const username = identifier
+      .trim()
+      .toLowerCase();
+
+    // ====================================================
+    // VALIDATION
+    // ====================================================
+
+    if (!username) {
+      next.identifier = "Enter your username";
     }
 
     if (!password) {
@@ -196,12 +215,52 @@ export default function Login() {
       return;
     }
 
-    console.log("Log in:", {
-      identifier,
-      staySignedIn,
-    });
+    // ====================================================
+    // TEMPORARY SMME LOGIN
+    //
+    // Username: adi
+    // Password: 123
+    // ====================================================
 
-    navigate("/Smmedashboard");
+    if (
+      username === "adi" &&
+      password === "123"
+    ) {
+      console.log("Logged in as SMME");
+
+      navigate("/Smmedashboard");
+
+      return;
+    }
+
+    // ====================================================
+    // TEMPORARY ED TEAM LOGIN
+    //
+    // Username: adi
+    // Password: 124
+    // ====================================================
+
+    if (
+      username === "adi" &&
+      password === "124"
+    ) {
+      console.log("Logged in as ED Team");
+
+      navigate("/EDTeamDashboard");
+
+      return;
+    }
+
+    // ====================================================
+    // INVALID LOGIN
+    // ====================================================
+
+    setErrors({
+      identifier:
+        "Invalid username or password",
+      password:
+        "Invalid username or password",
+    });
   };
 
   // ======================================================
@@ -355,17 +414,19 @@ export default function Login() {
                   2xl:text-lg
                 "
               >
-                Access your Tongaat Hulett business support
-                platform and manage your opportunities,
-                applications and business activities in one
-                place.
+                Access your Tongaat Hulett
+                business support platform and
+                manage your opportunities,
+                applications and business
+                activities in one place.
               </p>
             </div>
 
             {/* FOOTER */}
 
             <div className="text-xs text-white/50 xl:text-sm">
-              © {new Date().getFullYear()} Tongaat Hulett
+              © {new Date().getFullYear()}{" "}
+              Tongaat Hulett
             </div>
           </div>
         </aside>
@@ -417,7 +478,7 @@ export default function Login() {
                 className="
                   h-auto
                   w-[160px]
-                  xs:w-[180px]
+                  min-[360px]:w-[180px]
                   sm:w-[210px]
                   md:w-[230px]
                 "
@@ -472,7 +533,8 @@ export default function Login() {
                     sm:text-sm
                   "
                 >
-                  Sign in to your account to continue.
+                  Sign in to your account to
+                  continue.
                 </p>
               </div>
 
@@ -488,24 +550,28 @@ export default function Login() {
                   sm:space-y-5
                 "
               >
-                {/* EMAIL / PHONE */}
+                {/* USERNAME */}
 
                 <FloatingInput
                   id="identifier"
-                  label="Email or Phone Number"
+                  label="Username"
                   value={identifier}
                   onChange={(e) => {
-                    setIdentifier(e.target.value);
+                    setIdentifier(
+                      e.target.value
+                    );
 
-                    if (errors.identifier) {
-                      setErrors((current) => ({
-                        ...current,
-                        identifier: undefined,
-                      }));
+                    if (
+                      errors.identifier ||
+                      errors.password
+                    ) {
+                      setErrors({});
                     }
                   }}
                   autoComplete="username"
-                  error={errors.identifier}
+                  error={
+                    errors.identifier
+                  }
                 />
 
                 {/* PASSWORD */}
@@ -520,13 +586,15 @@ export default function Login() {
                   }
                   value={password}
                   onChange={(e) => {
-                    setPassword(e.target.value);
+                    setPassword(
+                      e.target.value
+                    );
 
-                    if (errors.password) {
-                      setErrors((current) => ({
-                        ...current,
-                        password: undefined,
-                      }));
+                    if (
+                      errors.identifier ||
+                      errors.password
+                    ) {
+                      setErrors({});
                     }
                   }}
                   autoComplete="current-password"
@@ -536,7 +604,8 @@ export default function Login() {
                       type="button"
                       onClick={() =>
                         setShowPassword(
-                          (current) => !current
+                          (current) =>
+                            !current
                         )
                       }
                       aria-label={
@@ -597,7 +666,9 @@ export default function Login() {
                   >
                     <input
                       type="checkbox"
-                      checked={staySignedIn}
+                      checked={
+                        staySignedIn
+                      }
                       onChange={(e) =>
                         setStaySignedIn(
                           e.target.checked
@@ -759,7 +830,9 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() =>
-                    navigate("/createaccount")
+                    navigate(
+                      "/createaccount"
+                    )
                   }
                   className="
                     rounded-none
@@ -790,7 +863,8 @@ export default function Login() {
                 lg:hidden
               "
             >
-              © {new Date().getFullYear()} Tongaat Hulett
+              © {new Date().getFullYear()}{" "}
+              Tongaat Hulett
             </p>
           </div>
         </main>

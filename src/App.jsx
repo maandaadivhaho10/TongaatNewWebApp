@@ -2,7 +2,6 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/LandingComponents/Navbar';
 import Hero from './components/LandingComponents/Hero';
-import ValueSection from './components/LandingComponents/ValueSection';
 import HowItWorks from './components/LandingComponents/HowItWorks';
 import Footer from './components/LandingComponents/Footer';
 import GrowerTypeSelector from './components/UserSelection/GrowerTypeSelector';
@@ -18,6 +17,7 @@ import CreateAccount from './components/RegisterSMME/CreateAccount'
 import BissnessOpportunities from './components/LandingComponents/BissnessOpportunities'
 import Fundingopportunities from './components/LandingComponents/Fundingopportunities'
 import Smmedashboard from './components/SMMEDashboard/Smmedashboard'
+import EDTeamDashboard from './components/EDTeam/EDTeamDashboard'
 
 
 function LandingPage() {
@@ -73,6 +73,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
          <Route path="/createaccount" element={<CreateAccount />} />
          <Route path="/Smmedashboard" element={<Smmedashboard />} />
+         <Route path="/EDTeamDashboard" element={<EDTeamDashboard />} />
 
          
       
@@ -87,6 +88,7 @@ export default function App() {
         <Route path="tonnage" element={<Tonnagesubmission title="Tonnage Submission" />} />
         <Route path="reports" element={<ComingSoon title="Monthly Report" />} />
         <Route path="profile" element={<ComingSoon title="Profile" />} />
+
       </Route>
 
     </Routes>
