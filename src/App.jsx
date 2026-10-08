@@ -18,6 +18,7 @@ import BissnessOpportunities from './components/LandingComponents/BissnessOpport
 import Fundingopportunities from './components/LandingComponents/Fundingopportunities'
 import Smmedashboard from './components/SMMEDashboard/Smmedashboard'
 import EDTeamDashboard from './components/EDTeam/EDTeamDashboard'
+import VerifyOtp from "./components/RegisterSMME/VerifyOtp";
 
 
 function LandingPage() {
@@ -74,6 +75,8 @@ export default function App() {
          <Route path="/createaccount" element={<CreateAccount />} />
          <Route path="/Smmedashboard" element={<Smmedashboard />} />
          <Route path="/EDTeamDashboard" element={<EDTeamDashboard />} />
+         <Route path="/verify-otp" element={<VerifyOtp />}
+/>
 
          
       

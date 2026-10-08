@@ -4,12 +4,12 @@ import {
   EyeOff,
   ChevronDown,
 } from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 
-const NAVY = "#201E64";
 
 // ======================================================
-// SHARED STYLES
+// STYLES
 // ======================================================
 
 const INPUT_CLASS = `
@@ -40,21 +40,36 @@ const LABEL_CLASS = `
   text-neutral-800
 `;
 
+
 // ======================================================
 // CREATE ACCOUNT
 // ======================================================
 
 export default function CreateAccount() {
+
   const navigate = useNavigate();
+
+
+  // ======================================================
+  // FORM DATA
+  // ======================================================
 
   const [formData, setFormData] = useState({
     title: "",
     firstName: "",
     lastName: "",
+    idNumber: "",
+    gender: "",
+    phoneNumber: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+
+
+  // ======================================================
+  // STATES
+  // ======================================================
 
   const [showPassword, setShowPassword] =
     useState(false);
@@ -67,11 +82,19 @@ export default function CreateAccount() {
   const [acceptedTerms, setAcceptedTerms] =
     useState(false);
 
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+
   // ======================================================
-  // HANDLE INPUT
+  // HANDLE INPUT CHANGE
   // ======================================================
 
   const handleChange = (event) => {
+
     const { name, value } = event.target;
 
     setFormData((previous) => ({
@@ -80,43 +103,204 @@ export default function CreateAccount() {
     }));
   };
 
+
   // ======================================================
-  // SUBMIT
+  // CREATE ACCOUNT
   // ======================================================
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
+
     event.preventDefault();
 
+    setError("");
+
+
+    // ====================================================
+    // TERMS VALIDATION
+    // ====================================================
+
     if (!acceptedTerms) {
-      alert(
+
+      setError(
         "Please accept the Terms and Conditions."
       );
 
       return;
     }
 
+
+    // ====================================================
+    // PASSWORD VALIDATION
+    // ====================================================
+
     if (
       formData.password !==
       formData.confirmPassword
     ) {
-      alert("Passwords do not match.");
+
+      setError("Passwords do not match.");
 
       return;
     }
 
-    console.log(
-      "Registration data:",
-      formData
-    );
 
-    // Add your API registration request here
+    // ====================================================
+    // PASSWORD LENGTH
+    // ====================================================
+
+    if (formData.password.length < 8) {
+
+      setError(
+        "Password must contain at least 8 characters."
+      );
+
+      return;
+    }
+
+
+    try {
+
+      setLoading(true);
+
+
+      // ==================================================
+      // REGISTER USER
+      // ==================================================
+
+      const response = await fetch(
+        "http://localhost:5000/api/auth/register/smme",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+
+            title:
+              formData.title,
+
+            first_name:
+              formData.firstName,
+
+            last_name:
+              formData.lastName,
+
+            id_number:
+              formData.idNumber,
+
+            gender:
+              formData.gender,
+
+            phone_number:
+              formData.phoneNumber,
+
+            email:
+              formData.email,
+
+            password:
+              formData.password,
+
+          }),
+        }
+      );
+
+
+      // ==================================================
+      // READ BACKEND RESPONSE
+      // ==================================================
+
+      const data = await response.json();
+
+
+      console.log(
+        "Registration response:",
+        data
+      );
+
+
+      // ==================================================
+      // REGISTRATION FAILED
+      // ==================================================
+
+      if (!response.ok) {
+
+        throw new Error(
+          data.message ||
+          "Registration failed."
+        );
+      }
+
+
+      // ==================================================
+      // GET CREATED USER ID
+      // ==================================================
+
+      const userId =
+        data.data?.user_id;
+
+
+      console.log(
+        "Created user ID:",
+        userId
+      );
+
+
+      if (!userId) {
+
+        throw new Error(
+          "Account created but user ID was not returned."
+        );
+      }
+
+
+      // ==================================================
+      // NAVIGATE TO OTP VERIFICATION
+      // ==================================================
+
+      navigate(
+        "/verify-otp",
+        {
+          state: {
+
+            userId: userId,
+
+            email:
+              formData.email,
+
+          },
+        }
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Registration error:",
+        error
+      );
+
+
+      setError(
+        error.message ||
+        "Something went wrong while creating your account."
+      );
+
+
+    } finally {
+
+      setLoading(false);
+    }
   };
+
 
   // ======================================================
   // UI
   // ======================================================
 
   return (
+
     <div
       className="
         min-h-screen
@@ -132,6 +316,7 @@ export default function CreateAccount() {
         md:py-8
       "
     >
+
       <div
         className="
           mx-auto
@@ -145,9 +330,6 @@ export default function CreateAccount() {
           md:min-h-[calc(100dvh-4rem)]
         "
       >
-        {/* ==================================================
-            CARD
-        ================================================== */}
 
         <div
           className="
@@ -158,6 +340,8 @@ export default function CreateAccount() {
             shadow-sm
           "
         >
+
+
           {/* ==================================================
               HEADER
           ================================================== */}
@@ -175,6 +359,7 @@ export default function CreateAccount() {
               md:px-8
             "
           >
+
             <h1
               className="
                 text-xl
@@ -187,6 +372,7 @@ export default function CreateAccount() {
             >
               Create New Account
             </h1>
+
 
             <p
               className="
@@ -202,7 +388,9 @@ export default function CreateAccount() {
               Create your account to access
               opportunities and business support.
             </p>
+
           </div>
+
 
           {/* ==================================================
               FORM
@@ -220,11 +408,14 @@ export default function CreateAccount() {
               md:px-8
             "
           >
+
+
             {/* ==================================================
                 TITLE
             ================================================== */}
 
             <div className="mb-4">
+
               <label
                 htmlFor="title"
                 className={LABEL_CLASS}
@@ -232,7 +423,9 @@ export default function CreateAccount() {
                 Title
               </label>
 
+
               <div className="relative">
+
                 <select
                   id="title"
                   name="title"
@@ -245,6 +438,7 @@ export default function CreateAccount() {
                     pr-10
                   `}
                 >
+
                   <option value="">
                     Select title
                   </option>
@@ -272,7 +466,9 @@ export default function CreateAccount() {
                   <option value="Prof">
                     Prof
                   </option>
+
                 </select>
+
 
                 <ChevronDown
                   className="
@@ -284,11 +480,13 @@ export default function CreateAccount() {
                     w-4
                     -translate-y-1/2
                     text-neutral-500
-                    sm:right-4
                   "
                 />
+
               </div>
+
             </div>
+
 
             {/* ==================================================
                 FIRST NAME + LAST NAME
@@ -303,9 +501,12 @@ export default function CreateAccount() {
                 sm:grid-cols-2
               "
             >
+
+
               {/* FIRST NAME */}
 
               <div>
+
                 <label
                   htmlFor="firstName"
                   className={LABEL_CLASS}
@@ -324,11 +525,14 @@ export default function CreateAccount() {
                   required
                   className={INPUT_CLASS}
                 />
+
               </div>
+
 
               {/* LAST NAME */}
 
               <div>
+
                 <label
                   htmlFor="lastName"
                   className={LABEL_CLASS}
@@ -347,14 +551,152 @@ export default function CreateAccount() {
                   required
                   className={INPUT_CLASS}
                 />
+
               </div>
+
             </div>
+
+
+            {/* ==================================================
+                ID NUMBER
+            ================================================== */}
+
+            <div className="mb-4">
+
+              <label
+                htmlFor="idNumber"
+                className={LABEL_CLASS}
+              >
+                ID Number
+              </label>
+
+              <input
+                id="idNumber"
+                name="idNumber"
+                type="text"
+                value={formData.idNumber}
+                onChange={handleChange}
+                placeholder="Enter ID number"
+                required
+                className={INPUT_CLASS}
+              />
+
+            </div>
+
+
+            {/* ==================================================
+                GENDER + PHONE NUMBER
+            ================================================== */}
+
+            <div
+              className="
+                mb-4
+                grid
+                grid-cols-1
+                gap-4
+                sm:grid-cols-2
+              "
+            >
+
+
+              {/* GENDER */}
+
+              <div>
+
+                <label
+                  htmlFor="gender"
+                  className={LABEL_CLASS}
+                >
+                  Gender
+                </label>
+
+
+                <div className="relative">
+
+                  <select
+                    id="gender"
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleChange}
+                    required
+                    className={`
+                      ${INPUT_CLASS}
+                      appearance-none
+                      pr-10
+                    `}
+                  >
+
+                    <option value="">
+                      Select gender
+                    </option>
+
+                    <option value="Male">
+                      Male
+                    </option>
+
+                    <option value="Female">
+                      Female
+                    </option>
+
+                    <option value="Other">
+                      Other
+                    </option>
+
+                  </select>
+
+
+                  <ChevronDown
+                    className="
+                      pointer-events-none
+                      absolute
+                      right-3
+                      top-1/2
+                      h-4
+                      w-4
+                      -translate-y-1/2
+                      text-neutral-500
+                    "
+                  />
+
+                </div>
+
+              </div>
+
+
+              {/* PHONE NUMBER */}
+
+              <div>
+
+                <label
+                  htmlFor="phoneNumber"
+                  className={LABEL_CLASS}
+                >
+                  Phone Number
+                </label>
+
+                <input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={handleChange}
+                  placeholder="e.g. 0712345678"
+                  autoComplete="tel"
+                  required
+                  className={INPUT_CLASS}
+                />
+
+              </div>
+
+            </div>
+
 
             {/* ==================================================
                 EMAIL
             ================================================== */}
 
             <div className="mb-4">
+
               <label
                 htmlFor="email"
                 className={LABEL_CLASS}
@@ -373,10 +715,12 @@ export default function CreateAccount() {
                 required
                 className={INPUT_CLASS}
               />
+
             </div>
 
+
             {/* ==================================================
-                PASSWORD ROW
+                PASSWORD + CONFIRM PASSWORD
             ================================================== */}
 
             <div
@@ -388,9 +732,12 @@ export default function CreateAccount() {
                 md:grid-cols-2
               "
             >
+
+
               {/* PASSWORD */}
 
               <div>
+
                 <label
                   htmlFor="password"
                   className={LABEL_CLASS}
@@ -398,7 +745,9 @@ export default function CreateAccount() {
                   Password
                 </label>
 
+
                 <div className="relative">
+
                   <input
                     id="password"
                     name="password"
@@ -407,9 +756,7 @@ export default function CreateAccount() {
                         ? "text"
                         : "password"
                     }
-                    value={
-                      formData.password
-                    }
+                    value={formData.password}
                     onChange={handleChange}
                     placeholder="Create password"
                     autoComplete="new-password"
@@ -418,9 +765,9 @@ export default function CreateAccount() {
                     className={`
                       ${INPUT_CLASS}
                       pr-11
-                      sm:pr-12
                     `}
                   />
+
 
                   <button
                     type="button"
@@ -440,47 +787,40 @@ export default function CreateAccount() {
                       justify-center
                       text-neutral-500
                       transition
-                      hover:bg-neutral-50
                       hover:text-[#201E64]
-                      focus:outline-none
-                      focus-visible:ring-2
-                      focus-visible:ring-inset
-                      focus-visible:ring-[#201E64]
                       sm:h-12
                       sm:w-12
                     "
-                    aria-label={
-                      showPassword
-                        ? "Hide password"
-                        : "Show password"
-                    }
                   >
+
                     {showPassword ? (
-                      <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <EyeOff className="h-5 w-5" />
                     ) : (
-                      <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <Eye className="h-5 w-5" />
                     )}
+
                   </button>
+
                 </div>
+
 
                 <p
                   className="
                     mt-1
-                    text-[10px]
-                    leading-4
+                    text-xs
                     text-neutral-500
-                    sm:text-xs
                   "
                 >
                   Minimum 8 characters.
                 </p>
+
               </div>
 
-              {/* ==================================================
-                  CONFIRM PASSWORD
-              ================================================== */}
+
+              {/* CONFIRM PASSWORD */}
 
               <div>
+
                 <label
                   htmlFor="confirmPassword"
                   className={LABEL_CLASS}
@@ -488,7 +828,9 @@ export default function CreateAccount() {
                   Confirm Password
                 </label>
 
+
                 <div className="relative">
+
                   <input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -507,17 +849,17 @@ export default function CreateAccount() {
                     className={`
                       ${INPUT_CLASS}
                       pr-11
-                      sm:pr-12
+
                       ${
-                        formData.confirmPassword !==
-                          "" &&
+                        formData.confirmPassword &&
                         formData.password !==
                           formData.confirmPassword
-                          ? "border-red-500 focus:border-red-500 focus:ring-red-100"
+                          ? "border-red-500"
                           : ""
                       }
                     `}
                   />
+
 
                   <button
                     type="button"
@@ -537,66 +879,64 @@ export default function CreateAccount() {
                       justify-center
                       text-neutral-500
                       transition
-                      hover:bg-neutral-50
                       hover:text-[#201E64]
-                      focus:outline-none
-                      focus-visible:ring-2
-                      focus-visible:ring-inset
-                      focus-visible:ring-[#201E64]
                       sm:h-12
                       sm:w-12
                     "
-                    aria-label={
-                      showConfirmPassword
-                        ? "Hide confirm password"
-                        : "Show confirm password"
-                    }
                   >
+
                     {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <EyeOff className="h-5 w-5" />
                     ) : (
-                      <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <Eye className="h-5 w-5" />
                     )}
+
                   </button>
+
                 </div>
 
-                {/* ERROR */}
 
-                {formData.confirmPassword !==
-                  "" &&
+                {/* PASSWORD DOES NOT MATCH */}
+
+                {formData.confirmPassword &&
                   formData.password !==
                     formData.confirmPassword && (
+
                     <p
                       className="
                         mt-1
-                        text-[10px]
+                        text-xs
                         text-red-600
-                        sm:text-xs
                       "
                     >
                       Passwords do not match.
                     </p>
+
                   )}
 
-                {/* MATCH */}
 
-                {formData.confirmPassword !==
-                  "" &&
+                {/* PASSWORD MATCH */}
+
+                {formData.confirmPassword &&
                   formData.password ===
                     formData.confirmPassword && (
+
                     <p
                       className="
                         mt-1
-                        text-[10px]
+                        text-xs
                         text-green-600
-                        sm:text-xs
                       "
                     >
                       Passwords match.
                     </p>
+
                   )}
+
               </div>
+
             </div>
+
 
             {/* ==================================================
                 TERMS
@@ -610,15 +950,16 @@ export default function CreateAccount() {
                 pt-4
               "
             >
+
               <label
                 className="
                   flex
                   cursor-pointer
                   items-start
-                  gap-2.5
-                  sm:gap-3
+                  gap-3
                 "
               >
+
                 <input
                   type="checkbox"
                   checked={acceptedTerms}
@@ -628,15 +969,15 @@ export default function CreateAccount() {
                     )
                   }
                   className="
-                    mt-0.5
+                    mt-1
                     h-4
                     w-4
                     shrink-0
                     cursor-pointer
                     accent-[#201E64]
-                    sm:mt-1
                   "
                 />
+
 
                 <span
                   className="
@@ -644,9 +985,9 @@ export default function CreateAccount() {
                     leading-5
                     text-neutral-600
                     sm:text-sm
-                    sm:leading-6
                   "
                 >
+
                   I agree to the{" "}
 
                   <button
@@ -658,9 +999,6 @@ export default function CreateAccount() {
                       font-semibold
                       text-[#201E64]
                       hover:underline
-                      focus:outline-none
-                      focus-visible:ring-2
-                      focus-visible:ring-[#201E64]
                     "
                   >
                     Terms and Conditions
@@ -668,16 +1006,47 @@ export default function CreateAccount() {
 
                   {" "}and acknowledge the
                   Privacy Policy.
+
                 </span>
+
               </label>
+
             </div>
 
+
             {/* ==================================================
-                CREATE ACCOUNT
+                BACKEND ERROR
+            ================================================== */}
+
+            {error && (
+
+              <div
+                className="
+                  mb-4
+                  border
+                  border-red-200
+                  bg-red-50
+                  px-4
+                  py-3
+                  text-xs
+                  leading-5
+                  text-red-700
+                  sm:text-sm
+                "
+              >
+                {error}
+              </div>
+
+            )}
+
+
+            {/* ==================================================
+                CREATE ACCOUNT BUTTON
             ================================================== */}
 
             <button
               type="submit"
+              disabled={loading}
               className="
                 h-11
                 w-full
@@ -692,6 +1061,8 @@ export default function CreateAccount() {
                 hover:bg-[#2B2889]
                 hover:shadow-md
                 active:scale-[0.99]
+                disabled:cursor-not-allowed
+                disabled:opacity-60
                 focus:outline-none
                 focus-visible:ring-2
                 focus-visible:ring-[#201E64]
@@ -699,8 +1070,13 @@ export default function CreateAccount() {
                 sm:h-12
               "
             >
-              Create Account
+
+              {loading
+                ? "Creating Account..."
+                : "Create Account"}
+
             </button>
+
 
             {/* ==================================================
                 LOGIN
@@ -717,6 +1093,7 @@ export default function CreateAccount() {
                 sm:text-sm
               "
             >
+
               Already have an account?{" "}
 
               <button
@@ -731,17 +1108,19 @@ export default function CreateAccount() {
                   font-semibold
                   text-[#201E64]
                   hover:underline
-                  focus:outline-none
-                  focus-visible:ring-2
-                  focus-visible:ring-[#201E64]
                 "
               >
                 Sign in
               </button>
+
             </p>
+
           </form>
+
         </div>
+
       </div>
+
     </div>
   );
 }
