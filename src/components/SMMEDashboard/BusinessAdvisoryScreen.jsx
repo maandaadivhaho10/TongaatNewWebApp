@@ -1,10 +1,12 @@
+
 import React, { useEffect, useRef, useState } from "react";
+import api from "../../API/axiosInstance";
+import { useAuth } from "../../context/AuthContext";
 
 const NAVY = "#201E64";
 
-// ======================================================
-// SUPPORT AREAS
-// ======================================================
+// Change this only if your backend uses a different route.
+const ADVISORY_URL = "/advisory";
 
 const SUPPORT_AREAS = [
   "Financial Management",
@@ -19,33 +21,21 @@ const SUPPORT_AREAS = [
   "Other",
 ];
 
-// ======================================================
-// MAIN COMPONENT
-// ======================================================
-
 export default function BusinessAdvisoryScreen() {
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+
   const [formData, setFormData] = useState({
     support_area: "",
     description: "",
   });
 
-  const [dropdownOpen, setDropdownOpen] =
-    useState(false);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [success, setSuccess] =
-    useState("");
-
-  const [error, setError] =
-    useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
 
   const dropdownRef = useRef(null);
-
-  // ======================================================
-  // CLOSE DROPDOWN WHEN CLICKING OUTSIDE
-  // ======================================================
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -57,28 +47,18 @@ export default function BusinessAdvisoryScreen() {
       }
     };
 
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
-  // ======================================================
-  // HANDLE DESCRIPTION
-  // ======================================================
+  const handleChange = (event) => {
+    const { name, value } = event.target;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
+    setFormData((previous) => ({
+      ...previous,
       [name]: value,
     }));
 
@@ -86,13 +66,9 @@ export default function BusinessAdvisoryScreen() {
     setSuccess("");
   };
 
-  // ======================================================
-  // SELECT SUPPORT AREA
-  // ======================================================
-
   const handleSupportAreaSelect = (area) => {
-    setFormData((prev) => ({
-      ...prev,
+    setFormData((previous) => ({
+      ...previous,
       support_area: area,
     }));
 
@@ -101,71 +77,67 @@ export default function BusinessAdvisoryScreen() {
     setSuccess("");
   };
 
-  // ======================================================
-  // SUBMIT
-  // ======================================================
+  const getRequestDate = () => {
+    const today = new Date();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
 
-    if (
-      !formData.support_area ||
-      !formData.description.trim()
-    ) {
-      setError(
-        "Please complete all required fields."
-      );
+    return `${year}-${month}-${day}`;
+  };
 
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (submittingRef.current) return;
+
+    setError("");
+    setSuccess("");
+
+    if (!formData.support_area || !formData.description.trim()) {
+      setError("Please complete all required fields.");
       return;
     }
 
-    try {
-      setLoading(true);
-      setError("");
-      setSuccess("");
+    if (authLoading) {
+      setError("Please wait while your session is being restored.");
+      return;
+    }
 
+    if (!isAuthenticated || !user?.user_id) {
+      setError("Please log in to submit a business advisory request.");
+      return;
+    }
+
+    submittingRef.current = true;
+    setLoading(true);
+
+    try {
       const requestBody = {
-        user_id: 1, // Replace with logged-in user ID
-        support_area: formData.support_area,
-        description: formData.description,
-        request_date: new Date()
-          .toISOString()
-          .split("T")[0],
+        subject: formData.support_area,
+        description: formData.description.trim(),
+        request_date: getRequestDate(),
+        preferred_date: null,
       };
 
-      console.log(
-        "Business Advisory Request:",
+      // Axios automatically attaches the JWT access token.
+      const response = await api.post(
+        ADVISORY_URL,
         requestBody
       );
 
-      // ==================================================
-      // CONNECT YOUR API HERE
-      // ==================================================
+      const data = response.data;
 
-      /*
-      const response = await fetch(
-        "http://localhost:5000/api/advisory",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (data?.success === false) {
         throw new Error(
-          data.message ||
-            "Failed to submit advisory request"
+          data.message || "Failed to submit advisory request."
         );
       }
-      */
 
       setSuccess(
-        "Your business advisory request has been submitted successfully."
+        data?.message ||
+          "Your business advisory request has been submitted successfully."
       );
 
       setFormData({
@@ -173,164 +145,90 @@ export default function BusinessAdvisoryScreen() {
         description: "",
       });
     } catch (err) {
-      setError(
-        err.message ||
-          "Something went wrong while submitting your request."
-      );
+      console.error("Business advisory request error:", err);
+
+      if (err.response?.status === 401) {
+        setError(
+          "Your session is no longer valid. Please log in again."
+        );
+      } else if (err.response?.status === 403) {
+        setError(
+          "Your account does not have permission to submit advisory requests."
+        );
+      } else if (err.response?.status === 404) {
+        setError(
+          "Advisory API endpoint was not found. Check the backend route."
+        );
+      } else if (err.code === "ECONNABORTED") {
+        setError(
+          "The request timed out. Check whether it was saved before retrying."
+        );
+      } else if (!err.response && !err.message) {
+        setError("Unable to connect to the server.");
+      } else {
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "Failed to submit advisory request."
+        );
+      }
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
 
-  // ======================================================
-  // UI
-  // ======================================================
-
   return (
     <div className="w-full">
-
-      {/* ==================================================
-          HEADER
-      ================================================== */}
-
+      {/* HEADER */}
       <div className="mb-5">
         <h1
-          className="
-            text-2xl
-            font-extrabold
-            leading-tight
-            sm:text-3xl
-          "
+          className="text-2xl font-extrabold leading-tight sm:text-3xl"
           style={{ color: NAVY }}
         >
           Request Business Advisory
         </h1>
 
-        <p
-          className="
-            mt-1
-            max-w-2xl
-            text-sm
-            leading-5
-            text-neutral-500
-          "
-        >
-          Select the business area where you need support
-          and describe the assistance your business
-          requires.
+        <p className="mt-1 max-w-2xl text-sm leading-5 text-neutral-500">
+          Select the business area where you need support and describe
+          the assistance your business requires.
         </p>
       </div>
 
-      {/* ==================================================
-          FORM CARD
-      ================================================== */}
+      {/* FORM CARD */}
+      <div className="w-full max-w-3xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
 
-      <div
-        className="
-          w-full
-          max-w-3xl
-          border
-          border-neutral-200
-          bg-white
-          p-4
-          shadow-sm
-          sm:p-5
-        "
-      >
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4"
-        >
-
-          {/* ==================================================
-              SUPPORT AREA
-          ================================================== */}
-
+          {/* SUPPORT AREA */}
           <div>
-            <label
-              className="
-                mb-1.5
-                block
-                text-xs
-                font-semibold
-                text-neutral-700
-              "
-            >
+            <label className="mb-1.5 block text-xs font-semibold text-neutral-700">
               Business Area You Need Support With
-
-              <span className="ml-1 text-red-500">
-                *
-              </span>
+              <span className="ml-1 text-red-500">*</span>
             </label>
 
-            {/* CUSTOM DROPDOWN */}
-
-            <div
-              ref={dropdownRef}
-              className="relative w-full"
-            >
-
-              {/* DROPDOWN BUTTON */}
-
+            <div ref={dropdownRef} className="relative w-full">
               <button
                 type="button"
-                onClick={() =>
-                  setDropdownOpen(
-                    (previous) => !previous
-                  )
-                }
-                className="
-                  flex
-                  w-full
-                  items-center
-                  justify-between
-                  gap-3
-                  border
-                  border-neutral-300
-                  bg-white
-                  px-3
-                  py-2.5
-                  text-left
-                  text-sm
-                  outline-none
-                  transition
-                  focus:border-[#201E64]
-                  focus:ring-1
-                  focus:ring-[#201E64]
-                "
+                disabled={loading || authLoading}
+                aria-expanded={dropdownOpen}
+                onClick={() => setDropdownOpen((prev) => !prev)}
+                className="flex w-full items-center justify-between gap-3 border border-neutral-300 bg-white px-3 py-2.5 text-left text-sm outline-none transition focus:border-[#201E64] focus:ring-1 focus:ring-[#201E64] disabled:opacity-60"
               >
                 <span
-                  className={`
-                    min-w-0
-                    flex-1
-                    truncate
-
-                    ${
-                      formData.support_area
-                        ? "text-neutral-700"
-                        : "text-neutral-400"
-                    }
-                  `}
+                  className={`min-w-0 flex-1 truncate ${
+                    formData.support_area
+                      ? "text-neutral-700"
+                      : "text-neutral-400"
+                  }`}
                 >
                   {formData.support_area ||
                     "Select a business support area"}
                 </span>
 
-                {/* ARROW */}
-
                 <svg
-                  className={`
-                    h-4
-                    w-4
-                    shrink-0
-                    transition-transform
-
-                    ${
-                      dropdownOpen
-                        ? "rotate-180"
-                        : "rotate-0"
-                    }
-                  `}
+                  className={`h-4 w-4 shrink-0 transition-transform ${
+                    dropdownOpen ? "rotate-180" : "rotate-0"
+                  }`}
                   viewBox="0 0 20 20"
                   fill="none"
                   stroke="currentColor"
@@ -344,54 +242,19 @@ export default function BusinessAdvisoryScreen() {
                 </svg>
               </button>
 
-              {/* ==================================================
-                  DROPDOWN OPTIONS
-              ================================================== */}
-
               {dropdownOpen && (
-                <div
-                  className="
-                    absolute
-                    left-0
-                    right-0
-                    top-full
-                    z-50
-                    mt-1
-                    w-full
-                    overflow-hidden
-                    border
-                    border-neutral-200
-                    bg-white
-                    shadow-lg
-                  "
-                >
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 w-full overflow-hidden border border-neutral-200 bg-white shadow-lg">
                   <div className="max-h-52 overflow-y-auto">
                     {SUPPORT_AREAS.map((area) => (
                       <button
                         key={area}
                         type="button"
-                        onClick={() =>
-                          handleSupportAreaSelect(
-                            area
-                          )
-                        }
-                        className={`
-                          block
-                          w-full
-                          px-3
-                          py-2
-                          text-left
-                          text-sm
-                          transition
-                          hover:bg-neutral-50
-
-                          ${
-                            formData.support_area ===
-                            area
-                              ? "bg-[#201E64]/5 font-semibold text-[#201E64]"
-                              : "text-neutral-700"
-                          }
-                        `}
+                        onClick={() => handleSupportAreaSelect(area)}
+                        className={`block w-full px-3 py-2 text-left text-sm transition hover:bg-neutral-50 ${
+                          formData.support_area === area
+                            ? "bg-[#201E64]/5 font-semibold text-[#201E64]"
+                            : "text-neutral-700"
+                        }`}
                       >
                         {area}
                       </button>
@@ -402,38 +265,19 @@ export default function BusinessAdvisoryScreen() {
             </div>
 
             <p className="mt-1 text-[11px] text-neutral-400">
-              Select the area where your business requires
-              advisory support.
+              Select the area where your business requires advisory support.
             </p>
           </div>
 
-          {/* ==================================================
-              DESCRIPTION
-          ================================================== */}
-
+          {/* DESCRIPTION */}
           <div>
-            <div
-              className="
-                mb-1.5
-                flex
-                items-center
-                justify-between
-                gap-3
-              "
-            >
+            <div className="mb-1.5 flex items-center justify-between gap-3">
               <label
                 htmlFor="description"
-                className="
-                  text-xs
-                  font-semibold
-                  text-neutral-700
-                "
+                className="text-xs font-semibold text-neutral-700"
               >
                 Describe the Support You Need
-
-                <span className="ml-1 text-red-500">
-                  *
-                </span>
+                <span className="ml-1 text-red-500">*</span>
               </label>
 
               <span className="shrink-0 text-[11px] text-neutral-400">
@@ -446,114 +290,56 @@ export default function BusinessAdvisoryScreen() {
               name="description"
               rows={5}
               maxLength={1000}
+              required
+              disabled={loading || authLoading}
               value={formData.description}
               onChange={handleChange}
               placeholder="Explain the challenge your business is facing and the type of assistance you need..."
-              className="
-                min-h-[120px]
-                w-full
-                resize-y
-                border
-                border-neutral-300
-                px-3
-                py-2.5
-                text-sm
-                leading-5
-                outline-none
-                transition
-                placeholder:text-neutral-400
-                focus:border-[#201E64]
-                focus:ring-1
-                focus:ring-[#201E64]
-              "
+              className="min-h-[120px] w-full resize-y border border-neutral-300 px-3 py-2.5 text-sm leading-5 outline-none transition placeholder:text-neutral-400 focus:border-[#201E64] focus:ring-1 focus:ring-[#201E64] disabled:opacity-60"
             />
           </div>
 
-          {/* ==================================================
-              ERROR
-          ================================================== */}
-
+          {/* ERROR MESSAGE */}
           {error && (
             <div
-              className="
-                w-full
-                border
-                border-red-200
-                bg-red-50
-                px-3
-                py-2
-              "
+              role="alert"
+              className="w-full border border-red-200 bg-red-50 px-3 py-2"
             >
-              <p className="text-xs text-red-700">
-                {error}
-              </p>
+              <p className="text-xs text-red-700">{error}</p>
             </div>
           )}
 
-          {/* ==================================================
-              SUCCESS
-          ================================================== */}
-
+          {/* SUCCESS MESSAGE */}
           {success && (
             <div
-              className="
-                w-full
-                border
-                border-green-200
-                bg-green-50
-                px-3
-                py-2
-              "
+              role="status"
+              className="w-full border border-green-200 bg-green-50 px-3 py-2"
             >
-              <p className="text-xs text-green-700">
-                {success}
-              </p>
+              <p className="text-xs text-green-700">{success}</p>
             </div>
           )}
 
-          {/* ==================================================
-              BOTTOM
-          ================================================== */}
-
-          <div
-            className="
-              flex
-              flex-col
-              gap-3
-              border-t
-              border-neutral-200
-              pt-4
-              sm:flex-row
-              sm:items-center
-              sm:justify-between
-            "
-          >
+          {/* FOOTER */}
+          <div className="flex flex-col gap-3 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[11px] text-neutral-400">
               Fields marked with * are required.
             </p>
 
             <button
               type="submit"
-              disabled={loading}
-              className="
-                w-full
-                px-5
-                py-2.5
-                text-xs
-                font-bold
-                text-white
-                transition
-                hover:opacity-90
-                disabled:cursor-not-allowed
-                disabled:opacity-60
-                sm:w-auto
-              "
-              style={{
-                backgroundColor: NAVY,
-              }}
+              disabled={
+                loading ||
+                authLoading ||
+                !formData.support_area ||
+                !formData.description.trim()
+              }
+              className="w-full px-5 py-2.5 text-xs font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              style={{ backgroundColor: NAVY }}
             >
               {loading
                 ? "Submitting..."
+                : authLoading
+                ? "Checking session..."
                 : "Submit Advisory Request"}
             </button>
           </div>

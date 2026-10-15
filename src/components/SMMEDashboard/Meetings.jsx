@@ -1,630 +1,225 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  CalendarDays,
+  Search,
+  RefreshCw,
+  AlertCircle,
+  FileText,
+} from "lucide-react";
+import api from "../../API/axiosInstance";
+import { useAuth } from "../../context/AuthContext";
 
 const NAVY = "#201E64";
-
-// ======================================================
-// DUMMY MEETINGS
-// ======================================================
-
-const DUMMY_MEETINGS = [
-  {
-    meeting_id: 1,
-    title: "Supplier Development Progress Meeting",
-    description:
-      "Monthly progress meeting to discuss supplier development activities, business performance, challenges, and upcoming opportunities.",
-    meeting_date: "2026-10-08",
-    meeting_time: "10:00",
-    location: "Microsoft Teams",
-    response_status: "PENDING",
-  },
-  {
-    meeting_id: 2,
-    title: "SMME Business Review Meeting",
-    description:
-      "A business review session focused on current performance, development requirements, and areas where additional support may be required.",
-    meeting_date: "2026-10-14",
-    meeting_time: "13:30",
-    location: "Tongaat Hulett Offices",
-    response_status: "PENDING",
-  },
-  {
-    meeting_id: 3,
-    title: "Enterprise Development Check-in",
-    description:
-      "A short check-in session with the Enterprise Development team to discuss progress and upcoming programme activities.",
-    meeting_date: "2026-10-21",
-    meeting_time: "09:00",
-    location: "Online",
-    response_status: "ACCEPTED",
-  },
-];
-
-// ======================================================
-// DUMMY WORKSHOPS
-// ======================================================
-
-const DUMMY_WORKSHOPS = [
-  {
-    workshop_id: 1,
-    title: "Financial Management for SMMEs",
-    description:
-      "Learn practical financial management skills including budgeting, cash flow management, record keeping, and financial planning.",
-    workshop_date: "2026-10-10",
-    workshop_time: "09:00",
-    location: "Training Centre",
-    response_status: "PENDING",
-  },
-  {
-    workshop_id: 2,
-    title: "Tender Readiness Workshop",
-    description:
-      "This workshop will help SMMEs understand tender requirements, prepare compliant documentation, and improve their tender submissions.",
-    workshop_date: "2026-10-17",
-    workshop_time: "10:30",
-    location: "Johannesburg Business Centre",
-    response_status: "PENDING",
-  },
-  {
-    workshop_id: 3,
-    title: "Digital Skills and Business Growth",
-    description:
-      "A practical workshop focused on using digital tools, technology, and online platforms to improve business operations and reach new customers.",
-    workshop_date: "2026-10-24",
-    workshop_time: "11:00",
-    location: "Microsoft Teams",
-    response_status: "DECLINED",
-  },
-];
-
-// ======================================================
-// MAIN COMPONENT
-// ======================================================
-
-export default function MeetingsScreen() {
-  const [activeTab, setActiveTab] = useState("meetings");
-
-  const [meetings, setMeetings] = useState(DUMMY_MEETINGS);
-  const [workshops, setWorkshops] = useState(DUMMY_WORKSHOPS);
-
-  // ======================================================
-  // RESPOND TO MEETING
-  // ======================================================
-
-  const respondToMeeting = (meetingId, status) => {
-    setMeetings((currentMeetings) =>
-      currentMeetings.map((meeting) =>
-        meeting.meeting_id === meetingId
-          ? {
-              ...meeting,
-              response_status: status,
-            }
-          : meeting
-      )
-    );
-  };
-
-  // ======================================================
-  // RESPOND TO WORKSHOP
-  // ======================================================
-
-  const respondToWorkshop = (workshopId, status) => {
-    setWorkshops((currentWorkshops) =>
-      currentWorkshops.map((workshop) =>
-        workshop.workshop_id === workshopId
-          ? {
-              ...workshop,
-              response_status: status,
-            }
-          : workshop
-      )
-    );
-  };
-
-  // ======================================================
-  // FORMAT DATE
-  // ======================================================
-
-  const formatDate = (date) => {
-    if (!date) return "Not specified";
-
-    return new Date(`${date}T00:00:00`).toLocaleDateString("en-ZA", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  return (
-    <div className="w-full">
-
-      {/* ==================================================
-          HEADER
-      ================================================== */}
-
-      <div className="mb-6">
-        <h1
-          className="text-2xl sm:text-3xl font-extrabold"
-          style={{ color: NAVY }}
-        >
-          Meetings & Workshops
-        </h1>
-
-        <p className="mt-1 text-sm text-neutral-500">
-          View upcoming meetings and workshops and confirm whether you will
-          attend.
-        </p>
-      </div>
-
-      {/* ==================================================
-          TABS
-      ================================================== */}
-
-      <div className="mb-5 border-b border-neutral-200">
-        <div className="flex gap-1 overflow-x-auto">
-
-          {/* MEETINGS TAB */}
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("meetings")}
-            className={`
-              whitespace-nowrap
-              px-4
-              py-2.5
-              text-sm
-              font-semibold
-              border-b-2
-              transition-colors
-              ${
-                activeTab === "meetings"
-                  ? "border-[#201E64] text-[#201E64]"
-                  : "border-transparent text-neutral-500 hover:text-[#201E64]"
-              }
-            `}
-          >
-            Meetings ({meetings.length})
-          </button>
-
-          {/* WORKSHOPS TAB */}
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("workshops")}
-            className={`
-              whitespace-nowrap
-              px-4
-              py-2.5
-              text-sm
-              font-semibold
-              border-b-2
-              transition-colors
-              ${
-                activeTab === "workshops"
-                  ? "border-[#201E64] text-[#201E64]"
-                  : "border-transparent text-neutral-500 hover:text-[#201E64]"
-              }
-            `}
-          >
-            Workshops ({workshops.length})
-          </button>
-
-        </div>
-      </div>
-
-      {/* ==================================================
-          MEETINGS
-      ================================================== */}
-
-      {activeTab === "meetings" && (
-        <>
-          {meetings.length === 0 ? (
-            <EmptyState
-              title="No meetings available"
-              description="There are currently no meetings scheduled."
-            />
-          ) : (
-            <div
-              className="
-                grid
-                grid-cols-1
-                md:grid-cols-2
-                xl:grid-cols-3
-                gap-4
-              "
-            >
-              {meetings.map((meeting) => (
-                <EventCard
-                  key={meeting.meeting_id}
-                  type="Meeting"
-                  title={meeting.title}
-                  description={meeting.description}
-                  date={formatDate(meeting.meeting_date)}
-                  time={meeting.meeting_time}
-                  location={meeting.location}
-                  status={meeting.response_status}
-                  onAccept={() =>
-                    respondToMeeting(
-                      meeting.meeting_id,
-                      "ACCEPTED"
-                    )
-                  }
-                  onDecline={() =>
-                    respondToMeeting(
-                      meeting.meeting_id,
-                      "DECLINED"
-                    )
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ==================================================
-          WORKSHOPS
-      ================================================== */}
-
-      {activeTab === "workshops" && (
-        <>
-          {workshops.length === 0 ? (
-            <EmptyState
-              title="No workshops available"
-              description="There are currently no workshops scheduled."
-            />
-          ) : (
-            <div
-              className="
-                grid
-                grid-cols-1
-                md:grid-cols-2
-                xl:grid-cols-3
-                gap-4
-              "
-            >
-              {workshops.map((workshop) => (
-                <EventCard
-                  key={workshop.workshop_id}
-                  type="Workshop"
-                  title={workshop.title}
-                  description={workshop.description}
-                  date={formatDate(workshop.workshop_date)}
-                  time={workshop.workshop_time}
-                  location={workshop.location}
-                  status={workshop.response_status}
-                  onAccept={() =>
-                    respondToWorkshop(
-                      workshop.workshop_id,
-                      "ACCEPTED"
-                    )
-                  }
-                  onDecline={() =>
-                    respondToWorkshop(
-                      workshop.workshop_id,
-                      "DECLINED"
-                    )
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-    </div>
-  );
-}
-
-// ======================================================
-// EVENT CARD
-// ======================================================
-
-function EventCard({
-  type,
-  title,
-  description,
-  date,
-  time,
-  location,
-  status,
-  onAccept,
-  onDecline,
-}) {
-  const currentStatus = status?.toUpperCase() || "PENDING";
-
-  return (
-    <div
-      className="
-        flex
-        flex-col
-        bg-white
-        border
-        border-neutral-200
-        p-4
-        shadow-sm
-        transition
-        hover:shadow-md
-      "
-    >
-
-      {/* ==================================================
-          CARD HEADER
-      ================================================== */}
-
-      <div className="flex items-start justify-between gap-2">
-
-        <div className="min-w-0">
-
-          {/* TYPE */}
-
-          <span
-            className="
-              inline-block
-              mb-2
-              px-2
-              py-1
-              bg-[#201E64]/10
-              text-[#201E64]
-              text-[10px]
-              font-bold
-              uppercase
-              tracking-wide
-            "
-          >
-            {type}
-          </span>
-
-          {/* TITLE */}
-
-          <h2 className="text-base font-bold leading-5 text-neutral-900">
-            {title}
-          </h2>
-
-        </div>
-
-        {/* STATUS */}
-
-        {currentStatus !== "PENDING" && (
-          <ResponseBadge status={currentStatus} />
-        )}
-
-      </div>
-
-      {/* ==================================================
-          DESCRIPTION
-      ================================================== */}
-
-      {description && (
-        <p
-          className="
-            mt-2
-            text-xs
-            leading-5
-            text-neutral-500
-            line-clamp-2
-          "
-        >
-          {description}
-        </p>
-      )}
-
-      {/* ==================================================
-          DETAILS
-      ================================================== */}
-
-      <div
-        className="
-          mt-4
-          border-t
-          border-neutral-100
-          pt-3
-          space-y-2
-        "
-      >
-        <Detail
-          label="Date"
-          value={date}
-        />
-
-        <Detail
-          label="Time"
-          value={time || "Not specified"}
-        />
-
-        <Detail
-          label="Location"
-          value={location || "Not specified"}
-        />
-      </div>
-
-      {/* ==================================================
-          BUTTONS
-      ================================================== */}
-
-      <div className="mt-4">
-        <ResponseButtons
-          status={currentStatus}
-          onAccept={onAccept}
-          onDecline={onDecline}
-        />
-      </div>
-
-    </div>
-  );
-}
-
-// ======================================================
-// RESPONSE BUTTONS
-// ======================================================
-
-function ResponseButtons({
-  status,
-  onAccept,
-  onDecline,
-}) {
-  const currentStatus = status?.toUpperCase() || "PENDING";
-
-  return (
-    <div className="flex gap-2">
-
-      {/* ACCEPT */}
-
-      <button
-        type="button"
-        onClick={onAccept}
-        className={`
-          flex-1
-          px-3
-          py-2
-          border
-          text-xs
-          font-bold
-          transition-colors
-
-          ${
-            currentStatus === "ACCEPTED"
-              ? "bg-[#201E64] border-[#201E64] text-white"
-              : "bg-white border-[#201E64] text-[#201E64] hover:bg-[#201E64] hover:text-white"
-          }
-        `}
-      >
-        {currentStatus === "ACCEPTED"
-          ? "Accepted"
-          : "Accept"}
-      </button>
-
-      {/* DECLINE */}
-
-      <button
-        type="button"
-        onClick={onDecline}
-        className={`
-          flex-1
-          px-3
-          py-2
-          border
-          text-xs
-          font-bold
-          transition-colors
-
-          ${
-            currentStatus === "DECLINED"
-              ? "bg-red-600 border-red-600 text-white"
-              : "bg-white border-red-200 text-red-600 hover:bg-red-50"
-          }
-        `}
-      >
-        {currentStatus === "DECLINED"
-          ? "Declined"
-          : "Decline"}
-      </button>
-
-    </div>
-  );
-}
-
-// ======================================================
-// RESPONSE BADGE
-// ======================================================
-
-function ResponseBadge({ status }) {
-  const currentStatus = status?.toUpperCase();
-
-  if (
-    currentStatus !== "ACCEPTED" &&
-    currentStatus !== "DECLINED"
-  ) {
-    return null;
-  }
-
+const EVENTS_ENDPOINT = "/esd-activities";
+
+const formatDate = (value) => {
+  if (!value) return "Not specified";
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "Not specified";
+  return date.toLocaleDateString("en-ZA", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+function StatusBadge({ status }) {
+  const currentStatus = String(status || "SCHEDULED").toUpperCase();
   const styles = {
-    ACCEPTED:
-      "bg-green-50 text-green-700 border-green-200",
-
-    DECLINED:
-      "bg-red-50 text-red-700 border-red-200",
+    SCHEDULED: "border-blue-200 bg-blue-50 text-blue-700",
+    COMPLETED: "border-green-200 bg-green-50 text-green-700",
+    CANCELLED: "border-red-200 bg-red-50 text-red-700",
   };
-
   return (
-    <span
-      className={`
-        shrink-0
-        px-2
-        py-1
-        border
-        text-[10px]
-        font-bold
-        ${styles[currentStatus]}
-      `}
-    >
+    <span className={`inline-flex items-center border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${styles[currentStatus] || "border-neutral-200 bg-neutral-50 text-neutral-600"}`}>
       {currentStatus}
     </span>
   );
 }
 
-// ======================================================
-// DETAILS
-// ======================================================
-
-function Detail({ label, value }) {
+function EmptyState({ title, description }) {
   return (
-    <div className="flex items-start gap-3">
-
-      <span
-        className="
-          w-16
-          shrink-0
-          text-[10px]
-          font-bold
-          uppercase
-          tracking-wide
-          text-neutral-400
-        "
-      >
-        {label}
-      </span>
-
-      <span
-        className="
-          min-w-0
-          break-words
-          text-xs
-          font-medium
-          text-neutral-700
-        "
-      >
-        {value}
-      </span>
-
+    <div className="border border-neutral-200 bg-white p-8 text-center">
+      <CalendarDays className="mx-auto h-8 w-8 text-neutral-300" />
+      <h3 className="mt-3 text-lg font-bold text-[#201E64]">{title}</h3>
+      <p className="mt-1 text-sm text-neutral-500">{description}</p>
     </div>
   );
 }
 
-// ======================================================
-// EMPTY STATE
-// ======================================================
+export default function MeetingsScreen() {
+  const { token, isAuthenticated } = useAuth();
+  const [events, setEvents] = useState([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState([]);
 
-function EmptyState({
-  title,
-  description,
-}) {
+  const fetchEvents = useCallback(async (signal) => {
+    if (!isAuthenticated || !token) {
+      setEvents([]);
+      setError("Please log in to view events.");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    try {
+      const response = await api.get(EVENTS_ENDPOINT, {
+        signal,
+        // Remove this header if axiosInstance already injects the token.
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const result = response.data;
+      const activities = Array.isArray(result?.data)
+        ? result.data
+        : Array.isArray(result?.activities)
+          ? result.activities
+          : Array.isArray(result)
+            ? result
+            : [];
+
+      if (!signal?.aborted) setEvents(activities);
+    } catch (err) {
+      if (signal?.aborted || err.code === "ERR_CANCELED") return;
+      console.error("Fetch ESD events error:", err);
+      const message = err.response?.status === 401
+        ? "Your session has expired. Please log in again."
+        : err.response?.status === 403
+          ? "You do not have permission to view events."
+          : err.response?.data?.message || err.message || "Unable to load events.";
+      setError(message);
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, [token, isAuthenticated]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchEvents(controller.signal);
+    return () => controller.abort();
+  }, [fetchEvents]);
+
+  const filteredEvents = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return events.filter((event) => [
+      event.name,
+      event.description,
+      event.activity_date,
+      event.status,
+    ].some((value) => String(value || "").toLowerCase().includes(query)));
+  }, [events, search]);
+
+  const toggleDescription = (id) => {
+    setExpanded((current) => current.includes(id)
+      ? current.filter((item) => item !== id)
+      : [...current, id]);
+  };
+
   return (
-    <div
-      className="
-        bg-white
-        border
-        border-neutral-200
-        p-8
-        text-center
-      "
-    >
-      <h3 className="text-lg font-bold text-[#201E64]">
-        {title}
-      </h3>
+    <div className="w-full min-w-0">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold sm:text-3xl" style={{ color: NAVY }}>Events</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            View Enterprise and Supplier Development activities organised by the ED Team.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => fetchEvents()}
+          disabled={loading || !isAuthenticated}
+          className="inline-flex h-10 items-center justify-center gap-2 border border-neutral-300 bg-white px-4 text-xs font-semibold text-[#201E64] transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
+      </div>
 
-      <p className="mt-1 text-sm text-neutral-500">
-        {description}
-      </p>
+      <div className="mb-5 border border-neutral-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search events..."
+            className="h-10 w-full border border-neutral-300 bg-white pl-9 pr-3 text-xs outline-none focus:border-[#201E64] sm:text-sm"
+          />
+        </div>
+      </div>
+
+      {error && (
+        <div role="alert" className="mb-5 flex items-start gap-2 border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="border border-neutral-200 bg-white p-10 text-center">
+          <RefreshCw className="mx-auto h-6 w-6 animate-spin text-[#201E64]" />
+          <p className="mt-3 text-sm text-neutral-500">Loading events...</p>
+        </div>
+      ) : error ? null : filteredEvents.length === 0 ? (
+        <EmptyState
+          title="No events available"
+          description={search ? "No events match your search." : "There are currently no ESD events available."}
+        />
+      ) : (
+        <>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-bold sm:text-base" style={{ color: NAVY }}>Available Events</h2>
+            <span className="text-xs text-neutral-500">
+              {filteredEvents.length} {filteredEvents.length === 1 ? "event" : "events"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredEvents.map((event) => {
+              const isExpanded = expanded.includes(event.activity_id);
+              return (
+                <article
+                  key={event.activity_id}
+                  className="flex min-w-0 flex-col border border-neutral-200 bg-white p-4 shadow-sm transition hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#201E64]/10">
+                      <FileText className="h-5 w-5" style={{ color: NAVY }} />
+                    </div>
+                    <StatusBadge status={event.status} />
+                  </div>
+                  <div className="mt-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-400">ESD Activity</p>
+                    <h3 className="mt-1 break-words text-base font-bold leading-6" style={{ color: NAVY }}>
+                      {event.name}
+                    </h3>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2 border-b border-neutral-100 pb-3">
+                    <CalendarDays className="h-4 w-4 shrink-0 text-[#201E64]" />
+                    <span className="text-xs font-semibold text-neutral-700">{formatDate(event.activity_date)}</span>
+                  </div>
+                  <div className="mt-3">
+                    <p className={`whitespace-pre-wrap break-words text-xs leading-5 text-neutral-500 ${isExpanded ? "" : "line-clamp-3"}`}>
+                      {event.description}
+                    </p>
+                    {event.description?.length > 130 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleDescription(event.activity_id)}
+                        className="mt-2 text-xs font-semibold text-[#201E64] hover:underline"
+                      >
+                        {isExpanded ? "See less" : "See more"}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

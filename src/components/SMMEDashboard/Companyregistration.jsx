@@ -1,6 +1,28 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import api from "../../API/axiosInstance";
+import { useAuth } from "../../context/AuthContext";
 import { Check, Plus, Trash2 } from "lucide-react";
 const NAVY = "#201E64";
+// Routes are mounted at the server root, while the login Axios baseURL may end in /api.
+const API_ORIGIN = new URL(api.defaults.baseURL || "http://localhost:5000/", window.location.origin).origin;
+// Database sector IDs follow the displayed sector order (1 through 13).
+// The user sees the sector name; the API receives its numeric ID.
+const SECTOR_DATABASE_IDS = {
+  mining: 1,
+  agriculture: 2,
+  forestry: 3,
+  fishing: 4,
+  livestock: 5,
+  automotive: 6,
+  agro_processing: 7,
+  heavy_industry: 8,
+  financial_services: 9,
+  wholesale_retail: 10,
+  tourism_hospitality: 11,
+  ict: 12,
+  rd_consulting: 13,
+};
+
 const FOCUS =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#201E64] focus-visible:ring-offset-2";
 const BTN = `
@@ -57,11 +79,6 @@ const STEPS = [
     title: "Experience",
     heading: "Previous clients",
     text: "Add previous clients who can confirm your work.",
-  },
-  {
-    title: "Review",
-    heading: "Review and submit",
-    text: "Check your details before you submit your registration.",
   },
 ];
 // ======================================================
@@ -336,7 +353,12 @@ function validate(step, form) {
       "annualRevenue",
       "Select your annual revenue"
     );
-    if (form.revenueProofDocument) file("revenueProofDocument");
+    if (form.financialStatements === "Yes" && !form.revenueProofDocument) {
+      errors.revenueProofDocument = "Upload your financial statement PDF";
+    }
+    if (form.revenueProofDocument && (form.revenueProofDocument.type !== "application/pdf" || !/\.pdf$/i.test(form.revenueProofDocument.name))) {
+      errors.revenueProofDocument = "Financial statement must be a PDF";
+    }
     count("permanentEmployees");
     count("contractEmployees");
     need(
@@ -816,64 +838,18 @@ function Stepper({ current }) {
   );
 }
 // ======================================================
-// REVIEW CARD
-// ======================================================
-function ReviewCard({
-  title,
-  rows,
-  onEdit,
-}) {
-  return (
-    <section className="border border-neutral-200 bg-white">
-      <div
-        className="flex items-center justify-between border-b border-neutral-200 bg-neutral-50 px-4 py-2.5"
-      >
-        <h3
-          className="text-xs font-bold"
-          style={{ color: NAVY }}
-        >
-          {title}
-        </h3>
-        <button
-          type="button"
-          onClick={onEdit}
-          className={`
-            text-xs
-            font-semibold
-            text-[#201E64]
-            hover:underline
-            ${FOCUS}
-          `}
-        >
-          Edit
-        </button>
-      </div>
-      <dl className="divide-y divide-neutral-100 text-xs">
-        {rows.map(([key, value]) => (
-          <div
-            key={key}
-            className="flex flex-col gap-1 px-4 py-2 sm:flex-row sm:justify-between sm:gap-5"
-          >
-            <dt className="text-neutral-500">
-              {key}
-            </dt>
-            <dd
-              className="break-words font-medium text-neutral-900 sm:text-right"
-            >
-              {value || "—"}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-// ======================================================
 // MAIN COMPONENT
 // ======================================================
-export default function CompanyRegistration({
-  onSubmit,
-}) {
+export default function CompanyRegistration() {
+  const { user, token, isAuthenticated } = useAuth();
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
+  const [statusError, setStatusError] = useState("");
+  const [registrationStatus, setRegistrationStatus] = useState(null);
+  const [maturitySaved, setMaturitySaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [confirmSection, setConfirmSection] = useState(null);
+  const [profileId, setProfileId] = useState(null);
   const [step, setStep] =
     useState(0);
   const [form, setForm] =
@@ -884,6 +860,140 @@ export default function CompanyRegistration({
     useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  // Personal fields come from the authenticated session, not user input.
+  useEffect(() => {
+    if (!user) return;
+    setForm((current) => ({
+      ...current,
+      firstName: user.first_name ?? "",
+      lastName: user.last_name ?? "",
+      idNumber: user.id_number ?? "",
+      gender: user.gender ?? "",
+      phone: user.phone_number ?? "",
+      email: user.email ?? "",
+    }));
+  }, [user]);
+
+  // The server is the source of truth, including after page refresh or login.
+  const loadRegistrationStatus = async () => {
+    if (!token || !user) {
+      setStatusError("Please log in to continue registration.");
+      setCheckingStatus(false);
+      return null;
+    }
+    setCheckingStatus(true);
+    setStatusError("");
+    try {
+      const { data } = await api.get(`${API_ORIGIN}/registration/status`);
+      if (data?.success !== true || !data?.data) {
+        throw new Error(data?.message || "Invalid registration status response");
+      }
+      const status = data.data;
+      setRegistrationStatus(status);
+      setProfileSaved(Boolean(status.profile_registered));
+      setMaturitySaved(Boolean(status.maturity_registered));
+      setProfileId(status.business_id ?? null);
+      if (status.profile_registered && status.maturity_registered) {
+        setDone(true);
+      } else {
+        setDone(false);
+        setStep(status.profile_registered ? 2 : 0);
+      }
+      return status;
+    } catch (error) {
+      setStatusError(error.response?.data?.message || error.message || "Could not check registration status. Retry before continuing.");
+      setRegistrationStatus(null);
+      return null;
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    // Status must be loaded before the form is usable.
+    loadRegistrationStatus();
+  }, [token, user?.user_id]);
+
+  // IMPORTANT: Match these keys and multipart file names to your Express
+  // controllers/multer.fields definitions if they use different names.
+  const yesNo = (value) => value === "Yes";
+
+  const saveBusinessProfile = async () => {
+    if (profileSaved) return;
+    const payload = {
+      business_name: form.businessName,
+      company_registration_number: form.companyRegistrationNumber,
+      business_address: form.businessAddress,
+      community: form.community,
+      bwo_ownership_percentage: Number(form.bwoOwnership),
+      bo_ownership_percentage: Number(form.boOwnership),
+      bee_level: form.beeLevel,
+      tax_compliance_pin: form.taxCompliancePin,
+      has_vat_registration: yesNo(form.hasVatRegistration),
+      vat_registration_number: yesNo(form.hasVatRegistration) ? form.vatRegistrationNumber : null,
+      has_bee_certificate: yesNo(form.hasBeeCertificate),
+      attended_esd_program: yesNo(form.attendedEsd),
+      esd_institution: yesNo(form.attendedEsd) ? form.esdCompanyName : null,
+      received_grant_or_loan: yesNo(form.receivedGrant),
+      grant_loan_institution: yesNo(form.receivedGrant) ? form.grantCompanyName : null,
+    };
+    const body = new FormData();
+    body.append("business_profile", JSON.stringify(payload));
+    if (form.coregDocument) body.append("company_registration_document", form.coregDocument);
+    if (form.beeDocument) body.append("bee_document", form.beeDocument);
+    const { data } = await api.post(`${API_ORIGIN}/business-profile/register`, body);
+    if (data?.success !== true) throw new Error(data?.message || "Business profile could not be saved");
+    setProfileId(data?.data?.business_id ?? data?.business_id ?? null);
+    setProfileSaved(true);
+  };
+
+  const saveBusinessMaturity = async () => {
+    if (maturitySaved) return;
+    const numericSectorId = SECTOR_DATABASE_IDS[form.sectorId];
+    if (!Number.isInteger(numericSectorId) || numericSectorId <= 0) {
+      throw new Error(`Configure the database sector_id for "${form.sectorName}" in SECTOR_DATABASE_IDS.`);
+    }
+    const payload = {
+      sector_id: numericSectorId,
+      industry_sector: form.sectorName,
+      services: form.service,
+      annual_revenue: null,
+      annual_revenue_range: form.annualRevenue,
+      permanent_employees: Number(form.permanentEmployees),
+      contract_employees: Number(form.contractEmployees),
+      number_of_employees: Number(form.permanentEmployees) + Number(form.contractEmployees),
+      employees_have_contracts: yesNo(form.employeesHaveContracts),
+      contracts_signed: yesNo(form.employeesHaveContracts) ? yesNo(form.contractsSigned) : false,
+      registered_with_uif: yesNo(form.uif),
+      registered_with_coida: yesNo(form.coida),
+      coida_certificate_number: yesNo(form.coida) ? form.coidaCertificateNumber : null,
+      has_accounting_system: yesNo(form.accounting),
+      accounting_system_name: yesNo(form.accounting) ? form.accountingSystemName : null,
+      has_payroll: yesNo(form.payroll),
+      payroll_management_description: !yesNo(form.payroll) ? form.payrollExplanation : null,
+      can_produce_financial_statements: yesNo(form.financialStatements),
+      // The current field is descriptive text, not a numeric contract value.
+      // Add a separate numeric input if you want to populate largest_contract_value.
+      largest_contract_value: null,
+    };
+    const clients = form.previousClients.map((client) => ({
+      client_name: client.name,
+      contact_number: client.contactNumber,
+      email: client.email,
+      work_done: client.workDone,
+    }));
+    const body = new FormData();
+    // Controller reads client_references from inside business_maturity.
+    payload.client_references = clients;
+    body.append("business_maturity", JSON.stringify(payload));
+    if (form.revenueProofDocument) {
+      body.append("financial_statement", form.revenueProofDocument);
+    }
+    const { data } = await api.post(`${API_ORIGIN}/business-maturity/register`, body);
+    if (data?.success !== true) throw new Error(data?.message || "Business maturity could not be saved");
+    setMaturitySaved(true);
+  };
+
   const f = form;
   const clear = (key) => {
     setErrors((current) => ({
@@ -998,93 +1108,70 @@ export default function CompanyRegistration({
       top: 0,
       behavior: "smooth",
     });
-  const next = () => {
-    const found = validate(
-      step,
-      form
-    );
-    setErrors(found);
-    if (
-      Object.keys(found).length
-    ) {
+  const next = async () => {
+    if (saving || checkingStatus || !registrationStatus) return;
+    if (step === 1 && profileSaved) {
+      setStep(2);
       top();
       return;
     }
-    setStep(
-      (current) => current + 1
-    );
+    if ((step === 2 || step === 3) && maturitySaved) {
+      setDone(true);
+      top();
+      return;
+    }
+    const found = validate(step, form);
+    setErrors(found);
+    if (Object.keys(found).length) { top(); return; }
+    if (!token || !user) {
+      setSubmitError("Your session has expired. Please log in again.");
+      return;
+    }
+    setSubmitError("");
+    if (step === 1 || step === 3) {
+      setConfirmSection(step === 1 ? "profile" : "maturity");
+      return;
+    }
+    setStep(current => current + 1);
     top();
+  };
+
+  const confirmAndSave = async () => {
+    if (!confirmSection || saving) return;
+    const section = confirmSection;
+    setConfirmSection(null);
+    setSaving(true);
+    try {
+      if (section === "profile") await saveBusinessProfile();
+      if (section === "maturity") await saveBusinessMaturity();
+      if (section === "maturity") {
+        setDone(true);
+      } else {
+        setStep(2);
+      }
+      top();
+    } catch (error) {
+      if (error.response?.status === 409) {
+        // Recover from duplicate requests or a prior successful submission.
+        const status = await loadRegistrationStatus();
+        if (status) {
+          setSubmitError("This section was already registered. Your progress has been restored.");
+        }
+      } else {
+        setSubmitError(error.response?.data?.message || error.message || "Unable to save. Please try again.");
+      }
+      top();
+    } finally {
+      setSaving(false);
+    }
   };
   const back = () => {
     setErrors({});
-    setStep(
-      (current) => current - 1
-    );
+    // Previously saved profile must not be submitted again.
+    setStep(current => Math.max(profileSaved ? 2 : 0, current - 1));
     top();
   };
-  // ====================================================
-  // SUBMIT
-  // ====================================================
-  const submit = async () => {
-    if (submitting) return;
-    for (let index = 0; index < 4; index += 1) {
-      const found = validate(index, form);
-      if (Object.keys(found).length) {
-        setErrors(found);
-        setStep(index);
-        top();
-        return;
-      }
-    }
-    setSubmitError("");
-    setSubmitting(true);
-    const payload = {
-      ...form,
-      vatRegistrationNumber: form.hasVatRegistration === "Yes" ? form.vatRegistrationNumber.trim() : "",
-      coidaCertificateNumber: form.coida === "Yes" ? form.coidaCertificateNumber.trim() : "",
-      beeDocumentType: form.hasBeeCertificate === "Yes" ? "B-BBEE certificate" : "Affidavit",
-      esdCompanyName:
-        form.attendedEsd === "Yes"
-          ? form.esdCompanyName
-          : "",
-      grantCompanyName:
-        form.receivedGrant === "Yes"
-          ? form.grantCompanyName
-          : "",
-      contractsSigned:
-        form.employeesHaveContracts ===
-        "Yes"
-          ? form.contractsSigned
-          : "",
-      accountingSystemName:
-        form.accounting === "Yes"
-          ? form.accountingSystemName
-          : "",
-      payrollExplanation:
-        form.payroll === "No"
-          ? form.payrollExplanation
-          : "",
-      previousClients:
-        form.previousClients.filter(
-          (client) =>
-            Object.values(client).some(
-              has
-            )
-        ),
-    };
-    try {
-      if (!onSubmit) {
-        throw new Error("Registration is not connected yet. Pass an onSubmit handler to save this form.");
-      }
-      await onSubmit(payload);
-      setDone(true);
-      top();
-    } catch (error) {
-      setSubmitError(error.message || "Unable to submit registration. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+
   const grid =
     "grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0";
   // ====================================================
@@ -1093,7 +1180,14 @@ export default function CompanyRegistration({
   return (
     <div className="min-h-screen bg-[#F5F6FA] text-neutral-900">
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-5">
-        {done ? (
+        {checkingStatus ? (
+          <div role="status" className="bg-white border p-8 text-center text-sm">Checking registration status…</div>
+        ) : statusError || !registrationStatus ? (
+          <div className="bg-white border p-8 text-center">
+            <p role="alert" className="mb-4 text-sm text-red-600">{statusError || "Registration status is unavailable."}</p>
+            <button type="button" className={BTN} onClick={loadRegistrationStatus}>Retry</button>
+          </div>
+        ) : done ? (
           // ==================================================
           // SUCCESS
           // ==================================================
@@ -1186,6 +1280,7 @@ export default function CompanyRegistration({
               {step === 0 && (
                 <div className={grid}>
                   <TextInput
+                    readOnly
                     label="First name"
                     value={f.firstName}
                     onChange={set(
@@ -1197,6 +1292,7 @@ export default function CompanyRegistration({
                     autoComplete="given-name"
                   />
                   <TextInput
+                    readOnly
                     label="Surname"
                     value={f.lastName}
                     onChange={set(
@@ -1208,6 +1304,7 @@ export default function CompanyRegistration({
                     autoComplete="family-name"
                   />
                   <TextInput
+                    readOnly
                     label="ID number"
                     value={f.idNumber}
                     onChange={set(
@@ -1220,7 +1317,8 @@ export default function CompanyRegistration({
                     maxLength={13}
                     hint="13-digit South African ID number"
                   />
-                  <Select
+                  <TextInput
+                    readOnly
                     label="Gender"
                     value={f.gender}
                     onChange={set(
@@ -1229,14 +1327,9 @@ export default function CompanyRegistration({
                     error={
                       errors.gender
                     }
-                    options={[
-                      "Female",
-                      "Male",
-                      "Other",
-                      "Prefer not to say",
-                    ]}
                   />
                   <TextInput
+                    readOnly
                     label="Phone number"
                     type="tel"
                     value={f.phone}
@@ -1245,6 +1338,7 @@ export default function CompanyRegistration({
                     autoComplete="tel"
                   />
                   <TextInput
+                    readOnly
                     label="Email address"
                     type="email"
                     value={f.email}
@@ -1524,7 +1618,7 @@ export default function CompanyRegistration({
                         We encourage suppliers to upload proof of last year's annual income.
                         Supporting documents help the team assess your business and may
                         improve your chances of being selected for suitable opportunities.
-                        You can continue without uploading this document.
+                        If you indicate that you have financial statements, upload a PDF before continuing.
                       </p>
                       <FileField
                         label="Proof of last year's annual income"
@@ -1917,213 +2011,6 @@ export default function CompanyRegistration({
                 </div>
               )}
               {/* ============================================
-                  STEP 5 - REVIEW
-              ============================================ */}
-              {step === 4 && (
-                <div className="space-y-4">
-                  <ReviewCard
-                    title="Personal information"
-                    onEdit={() =>
-                      setStep(0)
-                    }
-                    rows={[
-                      [
-                        "Name",
-                        `${f.firstName} ${f.lastName}`,
-                      ],
-                      [
-                        "ID number",
-                        f.idNumber,
-                      ],
-                      [
-                        "Gender",
-                        f.gender,
-                      ],
-                      [
-                        "Phone",
-                        f.phone,
-                      ],
-                      [
-                        "Email",
-                        f.email,
-                      ],
-                    ]}
-                  />
-                  <ReviewCard
-                    title="Business profile"
-                    onEdit={() =>
-                      setStep(1)
-                    }
-                    rows={[
-                      [
-                        "Business name",
-                        f.businessName,
-                      ],
-                      [
-                        "Registration number",
-                        f.companyRegistrationNumber,
-                      ],
-                      [
-                        "Address",
-                        f.businessAddress,
-                      ],
-                      [
-                        "Community",
-                        f.community,
-                      ],
-                      [
-                        "Black women ownership",
-                        f.bwoOwnership
-                          ? `${f.bwoOwnership}%`
-                          : "",
-                      ],
-                      [
-                        "Black ownership",
-                        f.boOwnership
-                          ? `${f.boOwnership}%`
-                          : "",
-                      ],
-                      [
-                        "B-BBEE level",
-                        f.beeLevel,
-                      ],
-                      [
-                        "CoReg document",
-                        f.coregDocument
-                          ?.name,
-                      ],
-                      [
-                        "Tax Compliance Status (TCS) PIN",
-                        f.taxCompliancePin,
-                      ],
-                      [
-                        "VAT registered", f.hasVatRegistration,
-                      ],
-                      ...(f.hasVatRegistration === "Yes" ? [["VAT registration number", f.vatRegistrationNumber]] : []),
-                      ["Has a B-BBEE certificate", f.hasBeeCertificate],
-                      [
-                        f.hasBeeCertificate === "Yes" ? "B-BBEE certificate" : "Affidavit",
-                        f.beeDocument
-                          ?.name,
-                      ],
-                      [
-                        "Attended ESD programme",
-                        f.attendedEsd ===
-                        "Yes"
-                          ? `Yes, ${f.esdCompanyName}`
-                          : f.attendedEsd,
-                      ],
-                      [
-                        "Received a grant",
-                        f.receivedGrant ===
-                        "Yes"
-                          ? `Yes, ${f.grantCompanyName}`
-                          : f.receivedGrant,
-                      ],
-                    ]}
-                  />
-                  <ReviewCard
-                    title="Business maturity"
-                    onEdit={() =>
-                      setStep(2)
-                    }
-                    rows={[
-                      [
-                        "Sector",
-                        f.sectorName,
-                      ],
-                      [
-                        "Product or service",
-                        f.service,
-                      ],
-                      [
-                        "Annual revenue",
-                        f.annualRevenue,
-                      ],
-                      [
-                        "Last year’s annual income proof", f.revenueProofDocument?.name || "Not uploaded",
-                      ],
-                      [
-                        "Permanent employees",
-                        f.permanentEmployees,
-                      ],
-                      [
-                        "Contract employees",
-                        f.contractEmployees,
-                      ],
-                      [
-                        "Employment contracts",
-                        f.employeesHaveContracts ===
-                        "Yes"
-                          ? `Yes, signed: ${f.contractsSigned}`
-                          : f.employeesHaveContracts,
-                      ],
-                      [
-                        "UIF registered",
-                        f.uif,
-                      ],
-                      [
-                        "COIDA registered",
-                        f.coida,
-                      ],
-                      ...(f.coida === "Yes" ? [["COIDA certificate number", f.coidaCertificateNumber]] : []),
-                      [
-                        "Accounting",
-                        f.accounting ===
-                        "Yes"
-                          ? `Yes, ${f.accountingSystemName}`
-                          : f.accounting,
-                      ],
-                      [
-                        "Formal payroll",
-                        f.payroll === "No"
-                          ? `No, ${f.payrollExplanation}`
-                          : f.payroll,
-                      ],
-                      [
-                        "Financial statements",
-                        f.financialStatements,
-                      ],
-                    ]}
-                  />
-                  <ReviewCard
-                    title="Previous clients"
-                    onEdit={() =>
-                      setStep(3)
-                    }
-                    rows={[
-                      ...f.previousClients.map(
-                        (
-                          client,
-                          index
-                        ) => [
-                          `Client ${
-                            index + 1
-                          }`,
-                          `${client.name}, ${client.contactNumber}`,
-                        ]
-                      ),
-                      [
-                        "Largest contract",
-                        f.largestContract,
-                      ],
-                    ]}
-                  />
-                  <p
-                    className="text-[11px] leading-5 text-neutral-500"
-                  >
-                    By submitting, you
-                    confirm that the
-                    information and documents
-                    you have provided are true
-                    and correct. Registration
-                    does not guarantee
-                    procurement opportunities,
-                    contracts or funding.
-                  </p>
-                </div>
-              )}
-              {/* ============================================
                   NAVIGATION
               ============================================ */}
               {submitError && <p role="alert" className="mt-4 text-sm text-red-600">{submitError}</p>}
@@ -2134,32 +2021,22 @@ export default function CompanyRegistration({
                   <button
                     type="button"
                     onClick={back}
-                    className={
-                      BTN_OUTLINE
-                    }
+                    disabled={saving || (profileSaved && step <= 2)}
+                    className={`${BTN_OUTLINE} disabled:opacity-40 disabled:cursor-not-allowed`}
                   >
                     Back
                   </button>
                 ) : (
                   <span />
                 )}
-                {step <
-                STEPS.length - 1 ? (
+                {(
                   <button
                     type="button"
                     onClick={next}
-                    className={BTN}
-                  >
-                    Continue
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={submit}
-                    disabled={submitting}
+                    disabled={saving || checkingStatus}
                     className={`${BTN} disabled:opacity-60 disabled:cursor-wait`}
                   >
-                    {submitting ? "Submitting…" : "Submit registration"}
+                    {saving ? "Saving…" : step === 3 ? "Submit business maturity" : step === 1 ? "Submit business profile" : "Continue"}
                   </button>
                 )}
               </div>
@@ -2167,6 +2044,23 @@ export default function CompanyRegistration({
           </>
         )}
       </main>
+      {confirmSection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="confirm-title" className="w-full max-w-md border border-neutral-200 bg-white p-6 shadow-xl">
+            <h2 id="confirm-title" className="text-lg font-bold text-[#201E64]">Are you sure you want to submit these details?</h2>
+            <p className="mt-3 text-sm leading-6 text-neutral-600">
+              {confirmSection === "profile"
+                ? "Your business profile and supporting documents will be registered. You cannot register this section again."
+                : "Your business maturity details and client references will be registered. You cannot register this section again."}
+              {" "}Please check that all information is correct before confirming.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button type="button" className={BTN_OUTLINE} onClick={() => setConfirmSection(null)}>Cancel and edit</button>
+              <button type="button" className={BTN} disabled={saving} onClick={confirmAndSave}>Yes, submit details</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,41 +21,31 @@ import SuppliersScreen from "./SuppliersScreen";
 import BusinessRequestsScreen from "./BusinessRequestsScreen";
 import MeetingsWorkshopsScreen from "./MeetingsWorkshopsScreen";
 import OpportunitiesScreen from "./OpportunitiesScreen";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 const NAVY = "#201E64";
-
 // ======================================================
 // DUMMY DATA
 // Replace with API data later
 // ======================================================
-
 const DASHBOARD_DATA = {
   teamName: "Enterprise Development Team",
-
   registeredSuppliers: 248,
-
   opportunitiesCreated: 36,
-
   fundingOpportunitiesCreated: 12,
-
   advisoryRequests: 28,
-
   meetingsCreated: 18,
-
   workshopsCreated: 9,
-
   programmesCreated: 6,
-
   genderDistribution: {
     male: 124,
     female: 109,
     other: 15,
   },
 };
-
 // ======================================================
 // RECENT ADVISORY REQUESTS
 // ======================================================
-
 const RECENT_ADVISORY_REQUESTS = [
   {
     id: 1,
@@ -79,11 +69,9 @@ const RECENT_ADVISORY_REQUESTS = [
     status: "IN REVIEW",
   },
 ];
-
 // ======================================================
 // NAVIGATION
 // ======================================================
-
 const NAV_ITEMS = [
   {
     id: "dashboard",
@@ -111,11 +99,9 @@ const NAV_ITEMS = [
     icon: BriefcaseBusiness,
   },
 ];
-
 // ======================================================
 // STAT CARD
 // ======================================================
-
 function StatCard({
   title,
   value,
@@ -139,7 +125,6 @@ function StatCard({
           <p className="text-xs font-medium text-neutral-500">
             {title}
           </p>
-
           <p
             className="
               mt-2
@@ -153,7 +138,6 @@ function StatCard({
             {value}
           </p>
         </div>
-
         <div
           className="
             flex
@@ -171,18 +155,15 @@ function StatCard({
           />
         </div>
       </div>
-
       <p className="mt-2 text-[11px] leading-4 text-neutral-400">
         {description}
       </p>
     </div>
   );
 }
-
 // ======================================================
 // QUICK ACTION
 // ======================================================
-
 function QuickAction({
   title,
   description,
@@ -228,7 +209,6 @@ function QuickAction({
           style={{ color: NAVY }}
         />
       </div>
-
       <div className="min-w-0 flex-1">
         <p
           className="
@@ -240,7 +220,6 @@ function QuickAction({
         >
           {title}
         </p>
-
         <p
           className="
             mt-0.5
@@ -252,7 +231,6 @@ function QuickAction({
           {description}
         </p>
       </div>
-
       <ChevronRight
         className="
           h-4
@@ -266,11 +244,9 @@ function QuickAction({
     </button>
   );
 }
-
 // ======================================================
 // GENDER DISTRIBUTION ROW
 // ======================================================
-
 function GenderRow({
   label,
   value,
@@ -280,7 +256,6 @@ function GenderRow({
     total > 0
       ? Math.round((value / total) * 100)
       : 0;
-
   return (
     <div>
       <div
@@ -295,12 +270,10 @@ function GenderRow({
         <span className="text-xs font-medium text-neutral-700">
           {label}
         </span>
-
         <span className="text-xs font-semibold text-neutral-700">
           {value} ({percentage}%)
         </span>
       </div>
-
       <div
         className="
           h-2
@@ -319,11 +292,9 @@ function GenderRow({
     </div>
   );
 }
-
 // ======================================================
 // STATUS BADGE
 // ======================================================
-
 function StatusBadge({ status }) {
   const style =
     status === "PENDING"
@@ -337,7 +308,6 @@ function StatusBadge({ status }) {
           bg-blue-50
           text-blue-700
         `;
-
   return (
     <span
       className={`
@@ -355,30 +325,24 @@ function StatusBadge({ status }) {
     </span>
   );
 }
-
 // ======================================================
 // DASHBOARD CONTENT
 // ======================================================
-
-function DashboardContent() {
+function DashboardContent({ displayName }) {
   const totalGender =
     DASHBOARD_DATA.genderDistribution.male +
     DASHBOARD_DATA.genderDistribution.female +
     DASHBOARD_DATA.genderDistribution.other;
-
   const handleQuickAction = (action) => {
     console.log("Quick action:", action);
-
     // Later:
     // Navigate to create screens or open modals here.
   };
-
   return (
     <div className="w-full">
       {/* ==================================================
           HEADER
       ================================================== */}
-
       <div
         className="
           mb-5
@@ -402,7 +366,6 @@ function DashboardContent() {
           >
             {DASHBOARD_DATA.teamName}
           </p>
-
           <h1
             className="
               mt-1
@@ -415,7 +378,7 @@ function DashboardContent() {
           >
             ED Team Dashboard
           </h1>
-
+          <p className="mt-2 text-sm font-semibold text-[#201E64]">Welcome, {displayName}!</p>
           <p
             className="
               mt-1
@@ -432,11 +395,9 @@ function DashboardContent() {
           </p>
         </div>
       </div>
-
       {/* ==================================================
           MAIN STATISTICS
       ================================================== */}
-
       <div
         className="
           grid
@@ -454,7 +415,6 @@ function DashboardContent() {
           description="Total suppliers registered on the portal"
           icon={Users}
         />
-
         <StatCard
           title="Business Opportunities"
           value={
@@ -463,7 +423,6 @@ function DashboardContent() {
           description="Total tender and RFQ opportunities created"
           icon={BriefcaseBusiness}
         />
-
         <StatCard
           title="Funding Opportunities"
           value={
@@ -473,7 +432,6 @@ function DashboardContent() {
           description="Total funding opportunities created"
           icon={CircleDollarSign}
         />
-
         <StatCard
           title="Business Advisory Requests"
           value={
@@ -483,11 +441,9 @@ function DashboardContent() {
           icon={MessageSquareText}
         />
       </div>
-
       {/* ==================================================
           SECONDARY STATISTICS
       ================================================== */}
-
       <div
         className="
           mt-3
@@ -506,7 +462,6 @@ function DashboardContent() {
           description="Total ED meetings created"
           icon={CalendarDays}
         />
-
         <StatCard
           title="Workshops Created"
           value={
@@ -515,7 +470,6 @@ function DashboardContent() {
           description="Total supplier workshops created"
           icon={TrendingUp}
         />
-
         <StatCard
           title="Programmes Created"
           value={
@@ -525,11 +479,9 @@ function DashboardContent() {
           icon={ClipboardList}
         />
       </div>
-
       {/* ==================================================
           QUICK ACTIONS
       ================================================== */}
-
       <section className="mt-6">
         <div className="mb-3">
           <h2
@@ -542,12 +494,10 @@ function DashboardContent() {
           >
             Quick Actions
           </h2>
-
           <p className="mt-0.5 text-xs text-neutral-500">
             Create and manage ED activities.
           </p>
         </div>
-
         <div
           className="
             grid
@@ -558,7 +508,6 @@ function DashboardContent() {
           "
         >
           {/* CREATE MEETING */}
-
           <QuickAction
             title="Create Meeting"
             description="Schedule a supplier meeting"
@@ -569,9 +518,7 @@ function DashboardContent() {
               )
             }
           />
-
           {/* CREATE WORKSHOP */}
-
           <QuickAction
             title="Create Workshop"
             description="Schedule a supplier workshop"
@@ -582,9 +529,7 @@ function DashboardContent() {
               )
             }
           />
-
           {/* CREATE BUSINESS OPPORTUNITY */}
-
           <QuickAction
             title="Create Business Opportunity"
             description="Create a tender or RFQ opportunity"
@@ -595,9 +540,7 @@ function DashboardContent() {
               )
             }
           />
-
           {/* CREATE PROGRAMME */}
-
           <QuickAction
             title="Create Programme"
             description="Create a supplier development programme"
@@ -610,11 +553,9 @@ function DashboardContent() {
           />
         </div>
       </section>
-
       {/* ==================================================
           GENDER DISTRIBUTION + ADVISORY INBOX
       ================================================== */}
-
       <div
         className="
           mt-6
@@ -627,7 +568,6 @@ function DashboardContent() {
         {/* ==================================================
             GENDER DISTRIBUTION
         ================================================== */}
-
         <section
           className="
             border
@@ -658,12 +598,10 @@ function DashboardContent() {
               >
                 Gender Distribution
               </h2>
-
               <p className="mt-0.5 text-xs text-neutral-500">
                 Registered supplier representatives
               </p>
             </div>
-
             <div
               className="
                 flex
@@ -681,7 +619,6 @@ function DashboardContent() {
               />
             </div>
           </div>
-
           <div className="mt-5 space-y-4">
             <GenderRow
               label="Male"
@@ -691,7 +628,6 @@ function DashboardContent() {
               }
               total={totalGender}
             />
-
             <GenderRow
               label="Female"
               value={
@@ -700,7 +636,6 @@ function DashboardContent() {
               }
               total={totalGender}
             />
-
             <GenderRow
               label="Other / Not specified"
               value={
@@ -710,7 +645,6 @@ function DashboardContent() {
               total={totalGender}
             />
           </div>
-
           <div
             className="
               mt-5
@@ -729,7 +663,6 @@ function DashboardContent() {
               <span className="text-xs text-neutral-500">
                 Total
               </span>
-
               <span
                 className="text-sm font-bold"
                 style={{ color: NAVY }}
@@ -739,11 +672,9 @@ function DashboardContent() {
             </div>
           </div>
         </section>
-
         {/* ==================================================
             BUSINESS ADVISORY INBOX
         ================================================== */}
-
         <section
           className="
             min-w-0
@@ -775,13 +706,11 @@ function DashboardContent() {
               >
                 Business Advisory Inbox
               </h2>
-
               <p className="mt-0.5 text-xs text-neutral-500">
                 Latest advisory requests from
                 registered suppliers.
               </p>
             </div>
-
             <Inbox
               className="
                 h-5
@@ -791,11 +720,9 @@ function DashboardContent() {
               "
             />
           </div>
-
           {/* ==================================================
               DESKTOP / TABLET TABLE
           ================================================== */}
-
           <div
             className="
               mt-4
@@ -820,7 +747,6 @@ function DashboardContent() {
                   >
                     Business
                   </th>
-
                   <th
                     className="
                       pb-2
@@ -834,7 +760,6 @@ function DashboardContent() {
                   >
                     Support Area
                   </th>
-
                   <th
                     className="
                       pb-2
@@ -848,7 +773,6 @@ function DashboardContent() {
                   >
                     Date
                   </th>
-
                   <th
                     className="
                       pb-2
@@ -864,7 +788,6 @@ function DashboardContent() {
                   </th>
                 </tr>
               </thead>
-
               <tbody>
                 {RECENT_ADVISORY_REQUESTS.map(
                   (request) => (
@@ -887,7 +810,6 @@ function DashboardContent() {
                       >
                         {request.businessName}
                       </td>
-
                       <td
                         className="
                           py-3
@@ -898,7 +820,6 @@ function DashboardContent() {
                       >
                         {request.supportArea}
                       </td>
-
                       <td
                         className="
                           whitespace-nowrap
@@ -910,7 +831,6 @@ function DashboardContent() {
                       >
                         {request.date}
                       </td>
-
                       <td className="py-3 text-right">
                         <StatusBadge
                           status={
@@ -924,11 +844,9 @@ function DashboardContent() {
               </tbody>
             </table>
           </div>
-
           {/* ==================================================
               MOBILE ADVISORY CARDS
           ================================================== */}
-
           <div className="mt-4 space-y-2 sm:hidden">
             {RECENT_ADVISORY_REQUESTS.map(
               (request) => (
@@ -958,12 +876,10 @@ function DashboardContent() {
                     >
                       {request.businessName}
                     </p>
-
                     <StatusBadge
                       status={request.status}
                     />
                   </div>
-
                   <p
                     className="
                       mt-2
@@ -973,7 +889,6 @@ function DashboardContent() {
                   >
                     {request.supportArea}
                   </p>
-
                   <p
                     className="
                       mt-1
@@ -987,7 +902,6 @@ function DashboardContent() {
               )
             )}
           </div>
-
           <button
             type="button"
             className="
@@ -1002,7 +916,6 @@ function DashboardContent() {
             "
           >
             View all advisory requests
-
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </section>
@@ -1010,12 +923,10 @@ function DashboardContent() {
     </div>
   );
 }
-
 // ======================================================
 // PLACEHOLDER SCREEN
 // These screens will be implemented later.
 // ======================================================
-
 function PlaceholderScreen({ title }) {
   return (
     <div
@@ -1048,7 +959,6 @@ function PlaceholderScreen({ title }) {
         >
           {title}
         </h1>
-
         <p className="mt-2 text-sm text-neutral-500">
           This screen will be implemented later.
         </p>
@@ -1056,52 +966,48 @@ function PlaceholderScreen({ title }) {
     </div>
   );
 }
-
 // ======================================================
 // MAIN ED TEAM DASHBOARD
 // ======================================================
-
 export default function EDTeamDashboard() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const displayName = [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || "ED Team Member";
+  const handleLogout = () => {
+    logout();
+    setMobileMenuOpen(false);
+    navigate("/login", { replace: true });
+  };
   const [activeScreen, setActiveScreen] =
     useState("dashboard");
-
   const [
     mobileMenuOpen,
     setMobileMenuOpen,
   ] = useState(false);
-
   // ======================================================
   // NAVIGATION
   // ======================================================
-
   const handleNavigation = (id) => {
     setActiveScreen(id);
     setMobileMenuOpen(false);
   };
-
   // ======================================================
   // SCREEN
   // ======================================================
-
   const renderScreen = () => {
     switch (activeScreen) {
       case "suppliers":
       return <SuppliersScreen />;
-
        case "requests":
       return <BusinessRequestsScreen />;
-
       case "meetings":
   return <MeetingsWorkshopsScreen />;
-
       case "opportunities":
   return <OpportunitiesScreen />;
-
       default:
-        return <DashboardContent />;
+        return <DashboardContent displayName={displayName} />;
     }
   };
-
   return (
     <div
       className="
@@ -1114,7 +1020,6 @@ export default function EDTeamDashboard() {
       {/* ==================================================
           MOBILE HEADER
       ================================================== */}
-
       <header
         className="
           sticky
@@ -1140,10 +1045,8 @@ export default function EDTeamDashboard() {
             sm:w-[170px]
           "
         />
-
         <div className="flex items-center gap-1">
           {/* NOTIFICATIONS */}
-
           <button
             type="button"
             aria-label="Notifications"
@@ -1160,7 +1063,6 @@ export default function EDTeamDashboard() {
             "
           >
             <Bell className="h-5 w-5" />
-
             <span
               className="
                 absolute
@@ -1173,9 +1075,7 @@ export default function EDTeamDashboard() {
               "
             />
           </button>
-
           {/* MENU */}
-
           <button
             type="button"
             onClick={() =>
@@ -1207,11 +1107,9 @@ export default function EDTeamDashboard() {
           </button>
         </div>
       </header>
-
       {/* ==================================================
           MOBILE NAVIGATION
       ================================================== */}
-
       {mobileMenuOpen && (
         <div
           className="
@@ -1228,7 +1126,6 @@ export default function EDTeamDashboard() {
           "
         >
           {/* TEAM NAME */}
-
           <div
             className="
               mb-3
@@ -1241,7 +1138,6 @@ export default function EDTeamDashboard() {
             <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
               ED Team
             </p>
-
             <p
               className="
                 mt-1
@@ -1250,19 +1146,15 @@ export default function EDTeamDashboard() {
               "
               style={{ color: NAVY }}
             >
-              Enterprise Development
+              {displayName}
             </p>
           </div>
-
           {/* NAV */}
-
           <nav className="space-y-1">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-
               const active =
                 activeScreen === item.id;
-
               return (
                 <button
                   key={item.id}
@@ -1283,7 +1175,6 @@ export default function EDTeamDashboard() {
                     text-sm
                     font-medium
                     transition
-
                     ${
                       active
                         ? "bg-[#201E64] text-white"
@@ -1292,7 +1183,6 @@ export default function EDTeamDashboard() {
                   `}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-
                   <span>
                     {item.label}
                   </span>
@@ -1300,9 +1190,7 @@ export default function EDTeamDashboard() {
               );
             })}
           </nav>
-
           {/* MOBILE LOGOUT */}
-
           <div
             className="
               mt-3
@@ -1312,7 +1200,8 @@ export default function EDTeamDashboard() {
             "
           >
             <button
-              type="button"
+              onClick={handleLogout}
+                type="button"
               className="
                 flex
                 w-full
@@ -1329,22 +1218,18 @@ export default function EDTeamDashboard() {
               "
             >
               <LogOut className="h-4 w-4" />
-
               Logout
             </button>
           </div>
         </div>
       )}
-
       {/* ==================================================
           MAIN LAYOUT
       ================================================== */}
-
       <div className="flex min-h-screen min-h-[100dvh]">
         {/* ==================================================
             DESKTOP SIDEBAR
         ================================================== */}
-
         <aside
           className="
             fixed
@@ -1362,7 +1247,6 @@ export default function EDTeamDashboard() {
           "
         >
           {/* LOGO */}
-
           <div
             className="
               flex
@@ -1380,9 +1264,7 @@ export default function EDTeamDashboard() {
               className="h-auto w-[180px]"
             />
           </div>
-
           {/* TEAM */}
-
           <div
             className="
               border-b
@@ -1402,7 +1284,6 @@ export default function EDTeamDashboard() {
             >
               ED Team
             </p>
-
             <p
               className="
                 mt-1
@@ -1411,12 +1292,10 @@ export default function EDTeamDashboard() {
               "
               style={{ color: NAVY }}
             >
-              Enterprise Development
+              {displayName}
             </p>
           </div>
-
           {/* NAVIGATION */}
-
           <nav
             className="
               flex-1
@@ -1427,10 +1306,8 @@ export default function EDTeamDashboard() {
           >
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-
               const active =
                 activeScreen === item.id;
-
               return (
                 <button
                   key={item.id}
@@ -1451,7 +1328,6 @@ export default function EDTeamDashboard() {
                     text-sm
                     font-medium
                     transition
-
                     ${
                       active
                         ? "bg-[#201E64] text-white"
@@ -1460,7 +1336,6 @@ export default function EDTeamDashboard() {
                   `}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-
                   <span className="min-w-0 truncate">
                     {item.label}
                   </span>
@@ -1468,9 +1343,7 @@ export default function EDTeamDashboard() {
               );
             })}
           </nav>
-
           {/* LOGOUT */}
-
           <div
             className="
               shrink-0
@@ -1480,7 +1353,8 @@ export default function EDTeamDashboard() {
             "
           >
             <button
-              type="button"
+              onClick={handleLogout}
+                type="button"
               className="
                 flex
                 w-full
@@ -1496,16 +1370,13 @@ export default function EDTeamDashboard() {
               "
             >
               <LogOut className="h-4 w-4" />
-
               Logout
             </button>
           </div>
         </aside>
-
         {/* ==================================================
             RIGHT CONTENT
         ================================================== */}
-
         <div
           className="
             min-w-0
@@ -1516,7 +1387,6 @@ export default function EDTeamDashboard() {
           {/* ==================================================
               DESKTOP TOP BAR
           ================================================== */}
-
           <header
             className="
               sticky
@@ -1535,19 +1405,16 @@ export default function EDTeamDashboard() {
           >
             <div>
               <p className="text-xs text-neutral-400">
-                SMME Portal
+                Signed in as
               </p>
-
               <p
                 className="text-sm font-bold"
                 style={{ color: NAVY }}
               >
-                ED Team
+                {displayName}
               </p>
             </div>
-
             {/* NOTIFICATIONS */}
-
             <button
               type="button"
               className="
@@ -1564,7 +1431,6 @@ export default function EDTeamDashboard() {
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
-
               <span
                 className="
                   absolute
@@ -1578,11 +1444,9 @@ export default function EDTeamDashboard() {
               />
             </button>
           </header>
-
           {/* ==================================================
               PAGE CONTENT
           ================================================== */}
-
           <main
             className="
               mx-auto

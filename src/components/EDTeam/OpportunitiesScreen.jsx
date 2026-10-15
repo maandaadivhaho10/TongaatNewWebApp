@@ -1,313 +1,158 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import api from "../../API/axiosInstance";
+import { useAuth } from "../../context/AuthContext";
 import {
   Search,
   FileText,
   ClipboardList,
-  Building2,
-  UserRound,
   CalendarDays,
   MapPin,
   Eye,
   X,
   ChevronRight,
-  ChevronLeft,
-  Mail,
-  Phone,
+  
   Users,
   BadgeCheck,
-  Wallet,
-  BriefcaseBusiness,
+
   Plus,
   Upload,
   Check,
   Send,
 } from "lucide-react";
 
+import { SupplierDetails } from "./SuppliersScreen"; // Adjust path if needed
+
 const NAVY = "#201E64";
 
-// ======================================================
-// INDUSTRIES
-// Replace with API data later
-// ======================================================
-
-const INDUSTRIES = [
-  "Agriculture",
-  "Construction",
-  "Engineering",
-  "Information Technology",
-  "Logistics & Transportation",
-  "Cleaning & Facilities Management",
-  "Manufacturing",
-  "Professional Services",
-  "Security Services",
-  "Office Supplies",
-  "Marketing & Communications",
-  "Food & Catering",
+// Sector IDs match the database order (1–13).
+const INDUSTRY_SECTORS = [
+  { sector_id: 1, sector_name: "Agriculture" },
+  { sector_id: 2, sector_name: "Agro-processing" },
+  { sector_id: 3, sector_name: "Automotive Assembly" },
+  { sector_id: 4, sector_name: "Financial Services" },
+  { sector_id: 5, sector_name: "Fishing" },
+  { sector_id: 6, sector_name: "Forestry" },
+  { sector_id: 7, sector_name: "Heavy Industry" },
+  { sector_id: 8, sector_name: "Information and Communications Technology (ICT)" },
+  { sector_id: 9, sector_name: "Livestock Farming" },
+  { sector_id: 10, sector_name: "Mining" },
+  { sector_id: 11, sector_name: "R&D and Consulting" },
+  { sector_id: 12, sector_name: "Tourism & Hospitality" },
+  { sector_id: 13, sector_name: "Wholesale & Retail" },
 ];
 
-// ======================================================
-// DUMMY TENDERS
-// ======================================================
 
-const INITIAL_TENDERS = [
-  {
-    id: 1,
-    title: "Agricultural Equipment Maintenance Services",
-    reference: "TH-TEN-001",
-    description:
-      "Tongaat Hulett is inviting qualified suppliers to provide agricultural equipment maintenance and repair services.",
-    closingDate: "2026-10-25",
-    location: "KwaZulu-Natal",
-    status: "OPEN",
-    createdDate: "2026-10-01",
-    industries: ["All Industries"],
-    documentName: "agricultural-equipment-tender.pdf",
+// =====================================================
+// API CONFIGURATION — adjust paths to your Express mounts
+// =====================================================
+const ENDPOINTS = {
+  tenders: "/tender",
+  rfqs: "/rfq",
+  createTender: "/tender",
+  createRfq: "/rfq",
+  tenderDetails: (id) => `/tenders/${id}/details`,
+  rfqDetails: (id) => `/rfqs/${id}/details`,
+};
 
-    responses: [
-      {
-        id: 1,
-        supplierId: 4,
-        firstName: "Sipho",
-        lastName: "Khumalo",
-        company: "Khumalo Engineering",
-        email: "sipho@khumaloengineering.co.za",
-        phone: "074 998 1132",
-        submittedDate: "2026-10-04",
-        beeLevel: "Level 3",
-        bwoOwnership: 30,
-        boOwnership: 60,
-        serviceOffered:
-          "Engineering, maintenance and equipment repairs",
-        locality: "Richards Bay, KwaZulu-Natal",
-        annualRevenue: "R10,000,000 - R20,000,000",
-        permanentEmployees: 42,
-        status: "SUBMITTED",
-      },
-      {
-        id: 2,
-        supplierId: 1,
-        firstName: "Thabo",
-        lastName: "Mokoena",
-        company: "Mokoena Agricultural Services",
-        email: "thabo@mokoena.co.za",
-        phone: "071 234 5678",
-        submittedDate: "2026-10-05",
-        beeLevel: "Level 1",
-        bwoOwnership: 100,
-        boOwnership: 100,
-        serviceOffered:
-          "Agricultural services, crop maintenance and farm support",
-        locality: "Johannesburg, Gauteng",
-        annualRevenue: "R1,000,000 - R5,000,000",
-        permanentEmployees: 12,
-        status: "SUBMITTED",
-      },
-    ],
-  },
+async function apiRequest(path, options = {}) {
+  const { method = "GET", body, headers, ...rest } = options;
+  try {
+    const response = await api.request({
+      url: path,
+      method,
+      data: body,
+      headers,
+      ...rest,
+    });
+    if (response.data?.success === false) {
+      throw new Error(response.data.message || "Request failed.");
+    }
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 401) {
+      throw new Error("Your session could not be authenticated. Please log in again.");
+    }
+    throw new Error(error.response?.data?.message || error.message || "Request failed.");
+  }
+}
 
-  {
-    id: 2,
-    title: "Facilities Management Services",
-    reference: "TH-TEN-002",
-    description:
-      "Request for qualified suppliers to provide cleaning and facilities management services.",
-    closingDate: "2026-11-05",
-    location: "Gauteng",
-    status: "OPEN",
-    createdDate: "2026-10-03",
-    industries: ["All Industries"],
-    documentName: "facilities-management.pdf",
+function extractArray(payload, keys) {
+  if (Array.isArray(payload)) return payload;
+  for (const key of keys) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+    if (Array.isArray(payload?.data?.[key])) return payload.data[key];
+  }
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+}
 
-    responses: [
-      {
-        id: 1,
-        supplierId: 5,
-        firstName: "Amanda",
-        lastName: "Ndlovu",
-        company: "Ndlovu Cleaning Services",
-        email: "amanda@ndlovucleaning.co.za",
-        phone: "076 334 8821",
-        submittedDate: "2026-10-05",
-        beeLevel: "Level 1",
-        bwoOwnership: 100,
-        boOwnership: 100,
-        serviceOffered:
-          "Commercial cleaning and facilities management",
-        locality: "Johannesburg, Gauteng",
-        annualRevenue: "R1,000,000 - R5,000,000",
-        permanentEmployees: 34,
-        status: "SUBMITTED",
-      },
-    ],
-  },
+function dateOnly(value) {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+}
 
-  {
-    id: 3,
-    title: "ICT Support and Software Services",
-    reference: "TH-TEN-003",
-    description:
-      "Appointment of an ICT supplier for technical support, cloud services and software development.",
-    closingDate: "2026-09-30",
-    location: "Gauteng",
-    status: "CLOSED",
-    createdDate: "2026-09-01",
-    industries: ["All Industries"],
-    documentName: "ict-support-tender.pdf",
+function normalizeOpportunity(row, type) {
+  const id = row[type === "rfq" ? "rfq_id" : "tender_id"] ?? row.id;
+  const sectors = row.sectors || row.industries || row.sector_names || row.sector_ids || (row.sector_name ? [row.sector_name] : []);
+  const sectorList = Array.isArray(sectors) ? sectors : typeof sectors === "string" ? sectors.split(",").map(v => v.trim()) : [];
+  return {
+    ...row,
+    id,
+    reference: row.reference || `${type === "rfq" ? "TH-RFQ" : "TH-TEN"}-${String(id).padStart(3, "0")}`,
+    closingDate: dateOnly(row.closing_date ?? row.closingDate),
+    createdDate: dateOnly(row.date_posted ?? row.created_at ?? row.createdDate),
+    industries: type === "tender" ? ["All Industries"] : sectorList.map((v) => typeof v === "string" ? (INDUSTRY_SECTORS.find(s => String(s.sector_id) === v)?.sector_name || v) : typeof v === "number" ? (INDUSTRY_SECTORS.find(s => s.sector_id === v)?.sector_name || `Sector ${v}`) : (v.sector_name || v.name || INDUSTRY_SECTORS.find(s => s.sector_id === Number(v.sector_id))?.sector_name)).filter(Boolean),
+    documentName: row.documentName || (row.image_url ? String(row.image_url).split("/").pop() : null),
+    documentUrl: row.image_url || null,
+    responseCount: Number(row.number_of_responses ?? row.response_count ?? row.responses?.length ?? 0),
+    responses: row.responses || [],
+  };
+}
 
-    responses: [
-      {
-        id: 1,
-        supplierId: 6,
-        firstName: "Mpho",
-        lastName: "Mahlangu",
-        company: "Mahlangu ICT Solutions",
-        email: "mpho@mahlanguict.co.za",
-        phone: "078 229 4110",
-        submittedDate: "2026-09-15",
-        beeLevel: "Level 2",
-        bwoOwnership: 40,
-        boOwnership: 80,
-        serviceOffered:
-          "ICT support, software development and cloud services",
-        locality: "Midrand, Gauteng",
-        annualRevenue: "R5,000,000 - R10,000,000",
-        permanentEmployees: 18,
-        status: "SHORTLISTED",
-      },
-    ],
-  },
-];
+function normalizeResponse(row, type) {
+  const s = row.supplier || row.business_profile || row;
+  return {
+    ...row,
+    id: row.rfq_response_id ?? row.tender_response_id ?? row.id,
+    supplierId: s.user_id ?? row.user_id,
+    firstName: s.first_name || "",
+    lastName: s.last_name || "",
+    company: s.business_name || "Not provided",
+    email: s.email || "",
+    phone: s.phone_number || "",
+    submittedDate: dateOnly(row.response_date ?? row.created_at),
+    beeLevel: s.bee_level || "Not provided",
+    bwoOwnership: s.bwo_ownership_percentage,
+    boOwnership: s.bo_ownership_percentage,
+    serviceOffered: s.services || "Not provided",
+    locality: s.business_address || s.community || "Not provided",
+    annualRevenue: s.annual_revenue_range || (s.annual_revenue != null ? `R${Number(s.annual_revenue).toLocaleString("en-ZA")}` : "Not provided"),
+    permanentEmployees: s.permanent_employees,
+    quotationAmount: type === "rfq" && row.quoted_price != null ? `R${Number(row.quoted_price).toLocaleString("en-ZA", {minimumFractionDigits:2})}` : null,
+    proposal: row.proposal,
+    quotationDocumentPath: row.quotation_document_path,
+    status: row.status || row.response_status || "SUBMITTED",
+    supplier: s,
+  };
+}
 
-// ======================================================
-// DUMMY RFQS
-// ======================================================
-
-const INITIAL_RFQS = [
-  {
-    id: 1,
-    title: "Supply of Office Equipment",
-    reference: "TH-RFQ-001",
-    description:
-      "Request for quotations for the supply and delivery of office equipment and accessories.",
-    closingDate: "2026-10-15",
-    location: "Durban, KwaZulu-Natal",
-    status: "OPEN",
-    createdDate: "2026-10-02",
-
-    industries: [
-      "Office Supplies",
-      "Professional Services",
-    ],
-
-    documentName: "office-equipment-rfq.pdf",
-
-    responses: [
-      {
-        id: 1,
-        supplierId: 3,
-        firstName: "Nomsa",
-        lastName: "Dlamini",
-        company: "Dlamini Business Solutions",
-        email: "nomsa@dlaminibusiness.co.za",
-        phone: "073 441 2209",
-        submittedDate: "2026-10-04",
-        beeLevel: "Level 1",
-        bwoOwnership: 100,
-        boOwnership: 100,
-        serviceOffered:
-          "Business supplies and administrative services",
-        locality: "Pretoria, Gauteng",
-        annualRevenue: "R500,000 - R1,000,000",
-        permanentEmployees: 7,
-        quotationAmount: "R48,500",
-        status: "SUBMITTED",
-      },
-      {
-        id: 2,
-        supplierId: 8,
-        firstName: "Lwazi",
-        lastName: "Mthembu",
-        company: "Lwazi Office Supplies",
-        email: "lwazi@officesupplies.co.za",
-        phone: "079 554 2241",
-        submittedDate: "2026-10-05",
-        beeLevel: "Level 2",
-        bwoOwnership: 51,
-        boOwnership: 75,
-        serviceOffered:
-          "Office equipment and stationery",
-        locality: "Durban, KwaZulu-Natal",
-        annualRevenue: "R1,000,000 - R5,000,000",
-        permanentEmployees: 10,
-        quotationAmount: "R45,900",
-        status: "SUBMITTED",
-      },
-    ],
-  },
-
-  {
-    id: 2,
-    title: "Transport Services",
-    reference: "TH-RFQ-002",
-    description:
-      "Request for quotations from logistics suppliers for transport and delivery services.",
-    closingDate: "2026-10-20",
-    location: "KwaZulu-Natal",
-    status: "OPEN",
-    createdDate: "2026-10-04",
-
-    industries: [
-      "Logistics & Transportation",
-      "Agriculture",
-    ],
-
-    documentName: "transport-services-rfq.pdf",
-
-    responses: [
-      {
-        id: 1,
-        supplierId: 2,
-        firstName: "Lerato",
-        lastName: "Nkosi",
-        company: "Nkosi Logistics Solutions",
-        email: "lerato@nkosilogistics.co.za",
-        phone: "072 555 8214",
-        submittedDate: "2026-10-05",
-        beeLevel: "Level 2",
-        bwoOwnership: 51,
-        boOwnership: 75,
-        serviceOffered:
-          "Transportation, logistics and freight services",
-        locality: "Durban, KwaZulu-Natal",
-        annualRevenue: "R5,000,000 - R10,000,000",
-        permanentEmployees: 28,
-        quotationAmount: "R82,000",
-        status: "SUBMITTED",
-      },
-    ],
-  },
-
-  {
-    id: 3,
-    title: "Printing and Branding Services",
-    reference: "TH-RFQ-003",
-    description:
-      "Request for quotations for printing, signage and corporate branding services.",
-    closingDate: "2026-10-30",
-    location: "Gauteng",
-    status: "OPEN",
-    createdDate: "2026-10-05",
-
-    industries: [
-      "Marketing & Communications",
-      "Professional Services",
-    ],
-
-    documentName: "printing-branding-rfq.pdf",
-
-    responses: [],
-  },
-];
+function normalizeDetails(payload, type) {
+  // Details endpoint is called only after a tender/RFQ is selected.
+  // Expected: { success: true, data: { tender|rfq: {...}, responses: [...] } }
+  const data = payload?.data ?? payload ?? {};
+  const row = data[type] ?? data.opportunity ?? data;
+  const opportunity = normalizeOpportunity(row, type);
+  const responseRows = Array.isArray(data.responses)
+    ? data.responses
+    : Array.isArray(row.responses)
+      ? row.responses
+      : Array.isArray(data[`${type}_responses`])
+        ? data[`${type}_responses`]
+        : [];
+  opportunity.responses = responseRows.map((r) => normalizeResponse(r, type));
+  opportunity.responseCount = opportunity.responses.length;
+  return opportunity;
+}
 
 // ======================================================
 // HELPERS
@@ -315,8 +160,9 @@ const INITIAL_RFQS = [
 
 function formatDate(date) {
   if (!date) return "—";
+  const normalized = dateOnly(date);
 
-  return new Date(`${date}T00:00:00`).toLocaleDateString(
+  return new Date(`${normalized}T00:00:00`).toLocaleDateString(
     "en-ZA",
     {
       day: "2-digit",
@@ -479,6 +325,7 @@ function DetailItem({
 function CreateOpportunityForm({
   onCreateTender,
   onCreateRfq,
+  sectors,
 }) {
   const fileInputRef = useRef(null);
 
@@ -498,6 +345,7 @@ function CreateOpportunityForm({
   const [pdfFile, setPdfFile] = useState(null);
 
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const [successMessage, setSuccessMessage] =
     useState("");
@@ -607,7 +455,7 @@ function CreateOpportunityForm({
   // SUBMIT
   // ======================================================
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     const nextErrors = {};
@@ -654,49 +502,28 @@ function CreateOpportunityForm({
       description: form.description.trim(),
       closingDate: form.closingDate,
       location: form.location.trim(),
-
-      status: "OPEN",
-
-      createdDate: new Date()
-        .toISOString()
-        .split("T")[0],
-
-      industries:
-        opportunityType === "tender"
-          ? ["All Industries"]
-          : selectedIndustries,
-
-      documentName: pdfFile.name,
+      sector_ids: opportunityType === "rfq" ? selectedIndustries : [],
       document: pdfFile,
-
-      responses: [],
     };
 
-    if (opportunityType === "tender") {
-      onCreateTender(opportunity);
-    } else {
-      onCreateRfq(opportunity);
-    }
-
-    setSuccessMessage(
-      opportunityType === "tender"
-        ? "Tender created successfully."
-        : "RFQ created successfully."
-    );
-
-    setForm({
-      title: "",
-      description: "",
-      closingDate: "",
-      location: "",
-    });
-
-    setSelectedIndustries([]);
-    setPdfFile(null);
-    setErrors({});
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    setSubmitting(true);
+    try {
+      if (opportunityType === "tender") {
+        await onCreateTender(opportunity);
+      } else {
+        await onCreateRfq(opportunity);
+      }
+      setSuccessMessage(opportunityType === "tender"
+        ? "Tender created successfully." : "RFQ created successfully.");
+      setForm({ title: "", description: "", closingDate: "", location: "" });
+      setSelectedIndustries([]);
+      setPdfFile(null);
+      setErrors({});
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      setErrors({ submit: error.message });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1260,18 +1087,18 @@ function CreateOpportunityForm({
                   lg:grid-cols-3
                 "
               >
-                {INDUSTRIES.map((industry) => {
+                {sectors.map((industry) => {
+                  const industryId = Number(industry.sector_id);
+                  const industryName = industry.sector_name;
                   const selected =
-                    selectedIndustries.includes(
-                      industry
-                    );
+                    selectedIndustries.includes(industryId);
 
                   return (
                     <button
-                      key={industry}
+                      key={industryId}
                       type="button"
                       onClick={() =>
-                        toggleIndustry(industry)
+                        toggleIndustry(industryId)
                       }
                       className={`
                         flex
@@ -1295,7 +1122,7 @@ function CreateOpportunityForm({
                         }
                       `}
                     >
-                      <span>{industry}</span>
+                      <span>{industryName}</span>
 
                       <span
                         className={`
@@ -1364,6 +1191,7 @@ function CreateOpportunityForm({
 
           <button
             type="submit"
+            disabled={submitting}
             className="
               inline-flex
               h-10
@@ -1383,12 +1211,13 @@ function CreateOpportunityForm({
           >
             <Send className="h-3.5 w-3.5" />
 
-            Create{" "}
+            {submitting ? "Creating..." : "Create"}{" "}
             {opportunityType === "rfq"
               ? "RFQ"
               : "Tender"}
           </button>
         </div>
+        {errors.submit && <p role="alert" className="mt-3 text-xs text-red-600">{errors.submit}</p>}
       </form>
     </div>
   );
@@ -1398,932 +1227,165 @@ function CreateOpportunityForm({
 // SUPPLIER RESPONSE DETAILS
 // ======================================================
 
-function SupplierResponseDetails({
-  response,
-  type,
-  opportunity,
-  onBack,
-}) {
+// Reuse the same full supplier modal as the Suppliers screen.
+// The modal includes document status, score, tax verification and PIN actions.
+function SupplierResponseDetails({ response, onBack, onSupplierUpdated }) {
   if (!response) return null;
-
-  const fullName =
-    `${response.firstName} ${response.lastName}`;
-
   return (
-    <div>
-      <button
-        type="button"
-        onClick={onBack}
-        className="
-          mb-4
-          inline-flex
-          items-center
-          gap-1.5
-          text-xs
-          font-bold
-          text-[#201E64]
-          hover:underline
-        "
-      >
-        <ChevronLeft className="h-4 w-4" />
+    <SupplierDetails
+      supplier={response.supplier}
+      initialTab="information"
+      onClose={onBack}
+      onUpdated={(businessId, status) => onSupplierUpdated(businessId, status)}
+    />
+  );
+}
 
-        Back to all responses
-      </button>
+// Match BusinessRequestsScreen document scoring. B-BBEE affidavits do not earn points.
+function documentScore(supplier = {}) {
+  const statuses = {
+    bee_document: supplier.document_status?.bee_document || (supplier.bee_document_submitted ? "SUBMITTED" : "NOT_SUBMITTED"),
+    financial_statement: supplier.document_status?.financial_statement || (supplier.has_financial_statement ? "SUBMITTED" : "NOT_SUBMITTED"),
+    company_registration: supplier.document_status?.company_registration || (supplier.has_company_registration_document ? "SUBMITTED" : "NOT_SUBMITTED"),
+    vat_registration: supplier.document_status?.vat_registration || (supplier.has_vat_registration ? "REGISTERED" : "NOT_REGISTERED"),
+    tax_compliance_pin: supplier.document_status?.tax_compliance_pin || (supplier.has_tax_compliance_pin ? "PROVIDED" : "NOT_PROVIDED")
+  };
+  const provided = value => ["SUBMITTED", "REGISTERED", "PROVIDED"].includes(String(value || "").toUpperCase());
+  const docs = Array.isArray(supplier.documents) ? supplier.documents : [];
+  const explicitType = String(supplier.bee_document_type || "").toUpperCase();
+  const beeType = explicitType.includes("AFFIDAVIT") ? "AFFIDAVIT"
+    : explicitType.includes("CERTIFICATE") ? "CERTIFICATE"
+    : docs.some(d => String(d.document_type || "").toUpperCase() === "BEE_AFFIDAVIT") ? "AFFIDAVIT"
+    : docs.some(d => String(d.document_type || "").toUpperCase() === "BEE_CERTIFICATE") ? "CERTIFICATE" : "";
+  const others = ["financial_statement", "company_registration", "vat_registration", "tax_compliance_pin"];
+  return others.filter(key => provided(statuses[key])).length +
+    (provided(statuses.bee_document) && beeType === "CERTIFICATE" ? 1 : 0);
+}
 
-      {/* SUPPLIER HEADER */}
+const COMPLIANCE_FILTERS = [
+  { key: "all", label: "All Scores", match: () => true },
+  { key: "Compliant", label: "Compliant", match: n => n === 5 },
+  { key: "Semi-compliant", label: "Semi-compliant", match: n => n >= 3 && n <= 4 },
+  { key: "Non-compliant", label: "Non-compliant", match: n => n >= 1 && n <= 2 },
+];
 
-      <div
-        className="
-          flex
-          flex-col
-          gap-3
-          border
-          border-neutral-200
-          bg-white
-          p-4
-          sm:flex-row
-          sm:items-center
-          sm:justify-between
-        "
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="
-              flex
-              h-11
-              w-11
-              shrink-0
-              items-center
-              justify-center
-              bg-[#201E64]/10
-            "
-          >
-            <UserRound
-              className="h-5 w-5"
-              style={{ color: NAVY }}
-            />
-          </div>
+function complianceLabel(value) {
+  if (value === 5) return "Compliant";
+  if (value >= 3) return "Semi-compliant";
+  if (value >= 1) return "Non-compliant";
+  return "No score";
+}
 
-          <div className="min-w-0">
-            <p
-              className="text-base font-bold"
-              style={{ color: NAVY }}
-            >
-              {fullName}
-            </p>
+function ComplianceLabel({ score }) {
+  const label = complianceLabel(score);
+  const styles = score === 5 ? "bg-green-50 text-green-700" : score >= 3
+    ? "bg-amber-50 text-amber-700" : score >= 1 ? "bg-red-50 text-red-700" : "bg-neutral-100 text-neutral-600";
+  return <span className={`inline-flex px-2 py-1 text-[11px] font-bold ${styles}`}>{label}</span>;
+}
 
-            <p className="mt-0.5 text-xs text-neutral-500">
-              {response.company}
-            </p>
-          </div>
-        </div>
-
-        <ResponseStatusBadge
-          status={response.status}
-        />
+function Pagination({ page, setPage, total, pageSize }) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-white p-3 text-xs">
+      <span className="text-neutral-500">Showing {total ? (page-1)*pageSize+1 : 0}–{Math.min(page*pageSize,total)} of {total}</span>
+      <div className="flex items-center gap-2">
+        <button type="button" disabled={page <= 1} onClick={() => setPage(p => p-1)} className="border px-3 py-2 disabled:opacity-40">Previous</button>
+        <span>Page {page} of {pages}</span>
+        <button type="button" disabled={page >= pages} onClick={() => setPage(p => p+1)} className="border px-3 py-2 disabled:opacity-40">Next</button>
       </div>
-
-      {/* RESPONSE INFORMATION */}
-
-      <section className="mt-5">
-        <h3
-          className="text-sm font-bold"
-          style={{ color: NAVY }}
-        >
-          Response Information
-        </h3>
-
-        <div
-          className="
-            mt-3
-            grid
-            grid-cols-1
-            gap-3
-            sm:grid-cols-2
-            lg:grid-cols-3
-          "
-        >
-          <DetailItem
-            icon={ClipboardList}
-            label="Opportunity"
-            value={opportunity.title}
-          />
-
-          <DetailItem
-            icon={FileText}
-            label="Reference"
-            value={opportunity.reference}
-          />
-
-          <DetailItem
-            icon={CalendarDays}
-            label="Submitted Date"
-            value={formatDate(
-              response.submittedDate
-            )}
-          />
-
-          <DetailItem
-            icon={BadgeCheck}
-            label="Response Status"
-            value={response.status}
-          />
-
-          {type === "rfq" && (
-            <DetailItem
-              icon={Wallet}
-              label="Quotation Amount"
-              value={
-                response.quotationAmount ||
-                "Not provided"
-              }
-            />
-          )}
-        </div>
-      </section>
-
-      {/* SUPPLIER INFORMATION */}
-
-      <section className="mt-6">
-        <h3
-          className="text-sm font-bold"
-          style={{ color: NAVY }}
-        >
-          Supplier Information
-        </h3>
-
-        <div
-          className="
-            mt-3
-            grid
-            grid-cols-1
-            gap-3
-            sm:grid-cols-2
-          "
-        >
-          <DetailItem
-            icon={UserRound}
-            label="Supplier Name"
-            value={fullName}
-          />
-
-          <DetailItem
-            icon={Building2}
-            label="Company"
-            value={response.company}
-          />
-
-          <DetailItem
-            icon={Mail}
-            label="Email Address"
-            value={response.email}
-          />
-
-          <DetailItem
-            icon={Phone}
-            label="Phone Number"
-            value={response.phone}
-          />
-        </div>
-      </section>
-
-      {/* BUSINESS INFORMATION */}
-
-      <section className="mt-6">
-        <h3
-          className="text-sm font-bold"
-          style={{ color: NAVY }}
-        >
-          Business Information
-        </h3>
-
-        <div
-          className="
-            mt-3
-            grid
-            grid-cols-1
-            gap-3
-            sm:grid-cols-2
-            lg:grid-cols-3
-          "
-        >
-          <DetailItem
-            icon={BadgeCheck}
-            label="B-BBEE Level"
-            value={response.beeLevel}
-          />
-
-          <DetailItem
-            icon={UserRound}
-            label="BWO Ownership"
-            value={`${response.bwoOwnership}%`}
-          />
-
-          <DetailItem
-            icon={Users}
-            label="BO Ownership"
-            value={`${response.boOwnership}%`}
-          />
-
-          <DetailItem
-            icon={BriefcaseBusiness}
-            label="Service Offered"
-            value={response.serviceOffered}
-          />
-
-          <DetailItem
-            icon={MapPin}
-            label="Locality"
-            value={response.locality}
-          />
-
-          <DetailItem
-            icon={Wallet}
-            label="Annual Revenue"
-            value={response.annualRevenue}
-          />
-
-          <DetailItem
-            icon={Users}
-            label="Permanent Employees"
-            value={response.permanentEmployees}
-          />
-        </div>
-      </section>
     </div>
   );
 }
 
-// ======================================================
-// MOBILE RESPONSE CARD
-// ======================================================
-
-function ResponseCard({
-  response,
-  type,
-  onClick,
-}) {
+function OpportunityDetailsScreen({ opportunity, type, onBack }) {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [selectedResponse, setSelectedResponse] = useState(null);
+  const [supplierOverrides, setSupplierOverrides] = useState({});
+  const pageSize = 8;
+  const responses = opportunity.responses || [];
+  const filtered = useMemo(() => responses.filter(response => {
+    const score = documentScore(response.supplier);
+    const matchesFilter = (COMPLIANCE_FILTERS.find(item => item.key === filter) || COMPLIANCE_FILTERS[0]).match(score);
+    const q = search.toLowerCase().trim();
+    const matchesSearch = !q || [response.company,response.firstName,response.lastName,response.email,response.locality]
+      .some(value => String(value || "").toLowerCase().includes(q));
+    return matchesFilter && matchesSearch;
+  }), [responses,search,filter]);
+  const pageRows = filtered.slice((page-1)*pageSize,page*pageSize);
+  const updateSupplierTax = (businessId, status) => {
+    setSupplierOverrides(prev => ({...prev,[businessId]: {...(prev[businessId]||{}),tax_compliance_status:status}}));
+    setSelectedResponse(prev => prev?.supplier?.business_id === businessId
+      ? {...prev,supplier:{...prev.supplier,tax_compliance_status:status}} : prev);
+  };
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="
-        w-full
-        border
-        border-neutral-200
-        bg-white
-        p-4
-        text-left
-        transition
-        hover:border-[#201E64]/40
-      "
-    >
-      <div
-        className="
-          flex
-          items-start
-          justify-between
-          gap-3
-        "
-      >
-        <div className="min-w-0">
-          <p
-            className="text-sm font-bold"
-            style={{ color: NAVY }}
-          >
-            {response.company}
-          </p>
-
-          <p className="mt-1 text-xs text-neutral-500">
-            {response.firstName} {response.lastName}
-          </p>
+    <div className="w-full space-y-5">
+      <button type="button" onClick={onBack} className="text-xs font-bold text-[#201E64] hover:underline">← Back to posted opportunities</button>
+      <section className="border border-neutral-200 bg-white p-4 sm:p-6">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="bg-[#201E64]/10 px-2 py-1 text-[10px] font-bold text-[#201E64]">{type.toUpperCase()}</span>
+          <OpportunityStatusBadge status={opportunity.status} />
+          <span className="text-xs text-neutral-400">{opportunity.reference}</span>
         </div>
-
-        <ResponseStatusBadge
-          status={response.status}
-        />
-      </div>
-
-      <div
-        className="
-          mt-3
-          space-y-2
-          border-t
-          border-neutral-100
-          pt-3
-        "
-      >
-        <div className="flex items-center gap-2">
-          <BadgeCheck className="h-3.5 w-3.5 text-neutral-400" />
-
-          <span className="text-xs text-neutral-600">
-            {response.beeLevel}
-          </span>
+        <h2 className="text-xl font-extrabold text-[#201E64] sm:text-2xl">{opportunity.title}</h2>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <DetailItem icon={CalendarDays} label="Posted" value={formatDate(opportunity.createdDate)} />
+          <DetailItem icon={CalendarDays} label="Closing date" value={formatDate(opportunity.closingDate)} />
+          <DetailItem icon={MapPin} label="Location" value={opportunity.location} />
         </div>
-
-        <div className="flex items-start gap-2">
-          <MapPin className="mt-0.5 h-3.5 w-3.5 text-neutral-400" />
-
-          <span className="text-xs text-neutral-600">
-            {response.locality}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <CalendarDays className="h-3.5 w-3.5 text-neutral-400" />
-
-          <span className="text-xs text-neutral-600">
-            Submitted{" "}
-            {formatDate(response.submittedDate)}
-          </span>
-        </div>
-
-        {type === "rfq" &&
-          response.quotationAmount && (
-            <div
-              className="
-                flex
-                items-center
-                justify-between
-                border-t
-                border-neutral-100
-                pt-3
-              "
-            >
-              <span className="text-[10px] font-bold uppercase text-neutral-400">
-                Quotation
-              </span>
-
-              <span
-                className="text-sm font-bold"
-                style={{ color: NAVY }}
-              >
-                {response.quotationAmount}
-              </span>
-            </div>
-          )}
-      </div>
-
-      <div
-        className="
-          mt-3
-          flex
-          items-center
-          justify-end
-          gap-1
-          text-xs
-          font-bold
-          text-[#201E64]
-        "
-      >
-        View supplier details
-
-        <ChevronRight className="h-3.5 w-3.5" />
-      </div>
-    </button>
-  );
-}
-
-// ======================================================
-// OPPORTUNITY DETAILS MODAL
-// ======================================================
-
-function OpportunityDetailsModal({
-  opportunity,
-  type,
-  onClose,
-}) {
-  const [selectedResponse, setSelectedResponse] =
-    useState(null);
-
-  if (!opportunity) return null;
-
-  return (
-    <div
-      className="
-        fixed
-        inset-0
-        z-[100]
-        flex
-        items-end
-        justify-center
-        bg-black/40
-        sm:items-center
-        sm:p-4
-      "
-      onClick={onClose}
-    >
-      <div
-        className="
-          flex
-          max-h-[95dvh]
-          w-full
-          flex-col
-          overflow-hidden
-          bg-[#F5F6FA]
-          shadow-xl
-          sm:max-w-6xl
-        "
-        onClick={(event) =>
-          event.stopPropagation()
-        }
-      >
-        {/* HEADER */}
-
-        <div
-          className="
-            flex
-            shrink-0
-            items-start
-            justify-between
-            gap-3
-            border-b
-            border-neutral-200
-            bg-white
-            p-4
-            sm:p-5
-          "
-        >
-          <div className="min-w-0">
-            <div className="flex flex-wrap gap-2">
-              <span
-                className="
-                  bg-[#201E64]/10
-                  px-2
-                  py-1
-                  text-[9px]
-                  font-bold
-                  uppercase
-                  text-[#201E64]
-                "
-              >
-                {type === "tender"
-                  ? "Tender"
-                  : "RFQ"}
-              </span>
-
-              <OpportunityStatusBadge
-                status={opportunity.status}
-              />
-            </div>
-
-            <h2
-              className="
-                mt-2
-                break-words
-                text-base
-                font-bold
-                sm:text-xl
-              "
-              style={{ color: NAVY }}
-            >
-              {selectedResponse
-                ? "Supplier Response"
-                : opportunity.title}
-            </h2>
-
-            <p className="mt-1 text-xs text-neutral-500">
-              {opportunity.reference}
-            </p>
+        <div className="mt-4">
+          <p className="text-[10px] font-bold uppercase text-neutral-400">Target sectors</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {(opportunity.industries?.length ? opportunity.industries : ["Not provided"]).map(name => <span key={name} className="bg-[#201E64]/10 px-2 py-1 text-xs font-semibold text-[#201E64]">{name}</span>)}
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="
-              flex
-              h-9
-              w-9
-              shrink-0
-              items-center
-              justify-center
-              text-neutral-500
-              hover:bg-neutral-100
-            "
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
-
-        {/* CONTENT */}
-
-        <div
-          className="
-            flex-1
-            overflow-y-auto
-            p-3
-            sm:p-5
-          "
-        >
-          {selectedResponse ? (
-            <SupplierResponseDetails
-              response={selectedResponse}
-              type={type}
-              opportunity={opportunity}
-              onBack={() =>
-                setSelectedResponse(null)
-              }
-            />
-          ) : (
-            <>
-              {/* OPPORTUNITY DETAILS */}
-
-              <div
-                className="
-                  border
-                  border-neutral-200
-                  bg-white
-                  p-4
-                "
-              >
-                <div
-                  className="
-                    grid
-                    grid-cols-1
-                    gap-3
-                    min-[480px]:grid-cols-2
-                    lg:grid-cols-4
-                  "
-                >
-                  <DetailItem
-                    icon={FileText}
-                    label="Reference"
-                    value={opportunity.reference}
-                  />
-
-                  <DetailItem
-                    icon={CalendarDays}
-                    label="Posted"
-                    value={formatDate(
-                      opportunity.createdDate
-                    )}
-                  />
-
-                  <DetailItem
-                    icon={CalendarDays}
-                    label="Closing Date"
-                    value={formatDate(
-                      opportunity.closingDate
-                    )}
-                  />
-
-                  <DetailItem
-                    icon={MapPin}
-                    label="Location"
-                    value={opportunity.location}
-                  />
-                </div>
-
-                {/* TARGET */}
-
-                <div className="mt-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-400">
-                    Target Industries
-                  </p>
-
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {opportunity.industries?.map(
-                      (industry) => (
-                        <span
-                          key={industry}
-                          className="
-                            bg-[#201E64]/10
-                            px-2
-                            py-1
-                            text-[10px]
-                            font-bold
-                            text-[#201E64]
-                          "
-                        >
-                          {industry}
-                        </span>
-                      )
-                    )}
-                  </div>
-                </div>
-
-                {/* DESCRIPTION */}
-
-                <div
-                  className="
-                    mt-4
-                    border-t
-                    border-neutral-100
-                    pt-4
-                  "
-                >
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-neutral-400">
-                    Description
-                  </p>
-
-                  <p className="mt-2 text-xs leading-5 text-neutral-600 sm:text-sm">
-                    {opportunity.description}
-                  </p>
-                </div>
-
-                {/* DOCUMENT */}
-
-                {opportunity.documentName && (
-                  <div
-                    className="
-                      mt-4
-                      flex
-                      min-w-0
-                      items-center
-                      gap-3
-                      border-t
-                      border-neutral-100
-                      pt-4
-                    "
-                  >
-                    <div
-                      className="
-                        flex
-                        h-9
-                        w-9
-                        shrink-0
-                        items-center
-                        justify-center
-                        bg-red-50
-                      "
-                    >
-                      <FileText className="h-4 w-4 text-red-600" />
-                    </div>
-
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase text-neutral-400">
-                        PDF Document
-                      </p>
-
-                      <p className="mt-1 truncate text-xs font-semibold text-neutral-700">
-                        {opportunity.documentName}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* RESPONSES HEADER */}
-
-              <div
-                className="
-                  mt-5
-                  flex
-                  flex-col
-                  gap-2
-                  sm:flex-row
-                  sm:items-center
-                  sm:justify-between
-                "
-              >
-                <div>
-                  <h3
-                    className="text-base font-bold"
-                    style={{ color: NAVY }}
-                  >
-                    Supplier Responses
-                  </h3>
-
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Select a supplier to view their
-                    complete details.
-                  </p>
-                </div>
-
-                <span
-                  className="
-                    w-fit
-                    bg-[#201E64]/10
-                    px-3
-                    py-2
-                    text-xs
-                    font-bold
-                    text-[#201E64]
-                  "
-                >
-                  {opportunity.responses.length} Responses
-                </span>
-              </div>
-
-              {/* EMPTY */}
-
-              {opportunity.responses.length === 0 && (
-                <div
-                  className="
-                    mt-3
-                    border
-                    border-neutral-200
-                    bg-white
-                    p-8
-                    text-center
-                  "
-                >
-                  <Users className="mx-auto h-7 w-7 text-neutral-300" />
-
-                  <p className="mt-3 text-sm font-bold text-neutral-700">
-                    No responses yet
-                  </p>
-
-                  <p className="mt-1 text-xs text-neutral-500">
-                    No suppliers have responded to this
-                    opportunity.
-                  </p>
-                </div>
-              )}
-
-              {/* MOBILE */}
-
-              {opportunity.responses.length > 0 && (
-                <div
-                  className="
-                    mt-3
-                    grid
-                    grid-cols-1
-                    gap-3
-                    md:hidden
-                  "
-                >
-                  {opportunity.responses.map(
-                    (response) => (
-                      <ResponseCard
-                        key={response.id}
-                        response={response}
-                        type={type}
-                        onClick={() =>
-                          setSelectedResponse(
-                            response
-                          )
-                        }
-                      />
-                    )
-                  )}
-                </div>
-              )}
-
-              {/* DESKTOP */}
-
-              {opportunity.responses.length > 0 && (
-                <div
-                  className="
-                    mt-3
-                    hidden
-                    overflow-x-auto
-                    border
-                    border-neutral-200
-                    bg-white
-                    md:block
-                  "
-                >
-                  <table className="w-full min-w-[850px]">
-                    <thead className="bg-neutral-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-neutral-400">
-                          Supplier
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-neutral-400">
-                          B-BBEE
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-neutral-400">
-                          Service
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-neutral-400">
-                          Locality
-                        </th>
-
-                        {type === "rfq" && (
-                          <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-neutral-400">
-                            Quotation
-                          </th>
-                        )}
-
-                        <th className="px-4 py-3 text-left text-[10px] font-bold uppercase text-neutral-400">
-                          Status
-                        </th>
-
-                        <th className="px-4 py-3 text-right text-[10px] font-bold uppercase text-neutral-400">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {opportunity.responses.map(
-                        (response) => (
-                          <tr
-                            key={response.id}
-                            onClick={() =>
-                              setSelectedResponse(
-                                response
-                              )
-                            }
-                            className="
-                              cursor-pointer
-                              border-t
-                              border-neutral-100
-                              transition
-                              hover:bg-[#201E64]/[0.02]
-                            "
-                          >
-                            <td className="px-4 py-3">
-                              <p className="text-xs font-bold text-neutral-800">
-                                {response.company}
-                              </p>
-
-                              <p className="mt-1 text-[10px] text-neutral-500">
-                                {response.firstName}{" "}
-                                {response.lastName}
-                              </p>
-                            </td>
-
-                            <td className="px-4 py-3 text-xs text-neutral-600">
-                              {response.beeLevel}
-                            </td>
-
-                            <td className="max-w-[220px] px-4 py-3">
-                              <p className="line-clamp-2 text-xs text-neutral-600">
-                                {response.serviceOffered}
-                              </p>
-                            </td>
-
-                            <td className="px-4 py-3 text-xs text-neutral-600">
-                              {response.locality}
-                            </td>
-
-                            {type === "rfq" && (
-                              <td className="whitespace-nowrap px-4 py-3 text-xs font-bold text-[#201E64]">
-                                {response.quotationAmount ||
-                                  "—"}
-                              </td>
-                            )}
-
-                            <td className="px-4 py-3">
-                              <ResponseStatusBadge
-                                status={response.status}
-                              />
-                            </td>
-
-                            <td className="px-4 py-3 text-right">
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-
-                                  setSelectedResponse(
-                                    response
-                                  );
-                                }}
-                                className="text-xs font-bold text-[#201E64] hover:underline"
-                              >
-                                View
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          )}
+        <div className="mt-4 border-t pt-4">
+          <p className="text-[10px] font-bold uppercase text-neutral-400">Description</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-neutral-700">{opportunity.description}</p>
         </div>
-
-        {/* FOOTER */}
-
-        <div
-          className="
-            flex
-            shrink-0
-            justify-end
-            border-t
-            border-neutral-200
-            bg-white
-            p-3
-            sm:p-4
-          "
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            className="
-              w-full
-              bg-[#201E64]
-              px-5
-              py-2.5
-              text-xs
-              font-bold
-              text-white
-              hover:bg-[#2B2889]
-              sm:w-auto
-            "
-          >
-            Close
-          </button>
+        {opportunity.documentUrl && <a href={opportunity.documentUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-[#201E64] hover:underline"><FileText className="h-4 w-4" />View opportunity document</a>}
+      </section>
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><h3 className="text-lg font-bold text-[#201E64]">Supplier Responses</h3><p className="text-xs text-neutral-500">Document scores are based on submitted information, not verification.</p></div>
+          <span className="text-xs font-bold text-neutral-600">{responses.length} responses</span>
         </div>
-      </div>
+        {/* Same compact filter tabs as Business Requests; no score ranges or counts. */}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter supplier responses by document score">
+          {COMPLIANCE_FILTERS.map(item => (
+            <button
+              key={item.key}
+              type="button"
+              aria-pressed={filter === item.key}
+              onClick={() => { setFilter(item.key); setPage(1); }}
+              className={`border px-3 py-2 text-xs font-semibold transition ${filter === item.key
+                ? "border-[#201E64] bg-[#201E64] text-white"
+                : "border-neutral-200 bg-white text-neutral-600 hover:border-[#201E64]"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 bg-white p-3 sm:flex-row">
+          <div className="relative flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-neutral-400"/><input type="search" value={search} onChange={e => {setSearch(e.target.value);setPage(1)}} placeholder="Search supplier or company..." className="h-10 w-full border border-neutral-300 pl-9 pr-3 text-sm focus:border-[#201E64] focus:outline-none" /></div>
+
+        </div>
+        {filtered.length === 0 ? <div className="border bg-white p-8 text-center text-sm text-neutral-500">No supplier responses match your filters.</div> : <>
+          <div className="grid gap-3 md:hidden">
+            {pageRows.map(r => {const score=documentScore(r.supplier);return <button key={r.id} type="button" onClick={()=>setSelectedResponse(r)} className="border bg-white p-4 text-left">
+              <div className="flex justify-between gap-2"><div><p className="font-bold text-[#201E64]">{r.company}</p><p className="text-xs text-neutral-500">{r.firstName} {r.lastName}</p></div><ComplianceLabel score={score}/></div>
+              <p className="mt-3 text-xs">Documents: <strong>{score}/5</strong></p>{type==="rfq"&&<p className="mt-1 text-xs">Quotation: {r.quotationAmount||"—"}</p>}
+              <p className="mt-2 text-xs font-bold text-[#201E64]">View supplier →</p>
+            </button>})}
+          </div>
+          <div className="hidden overflow-x-auto border bg-white md:block"><table className="w-full min-w-[760px] text-left text-xs"><thead className="bg-neutral-50 text-[10px] uppercase text-neutral-500"><tr><th className="p-3">Supplier</th><th className="p-3">B-BBEE</th><th className="p-3">Documents</th><th className="p-3">Classification</th><th className="p-3">Locality</th>{type==="rfq"&&<th className="p-3">Quotation</th>}<th className="p-3">Action</th></tr></thead><tbody>
+            {pageRows.map(r=>{const score=documentScore(r.supplier);return <tr key={r.id} className="border-t hover:bg-neutral-50"><td className="p-3"><strong>{r.company}</strong><p className="mt-1 text-neutral-500">{r.firstName} {r.lastName}</p></td><td className="p-3">{r.beeLevel}</td><td className="p-3 font-bold">{score}/5</td><td className="p-3"><ComplianceLabel score={score}/></td><td className="p-3">{r.locality}</td>{type==="rfq"&&<td className="p-3">{r.quotationAmount||"—"}</td>}<td className="p-3"><button type="button" onClick={()=>setSelectedResponse(r)} className="font-bold text-[#201E64] hover:underline">View</button></td></tr>})}
+          </tbody></table></div>
+          <Pagination page={page} setPage={setPage} total={filtered.length} pageSize={pageSize}/>
+        </>}
+      </section>
+      {selectedResponse && <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/50 p-3 sm:p-6" onClick={()=>setSelectedResponse(null)}><div className="mx-auto max-w-6xl bg-white p-3 sm:p-5" onClick={e=>e.stopPropagation()}><button type="button" onClick={()=>setSelectedResponse(null)} className="mb-4 text-xs font-bold text-[#201E64]">← Back to responses</button><SupplierResponseDetails response={selectedResponse} onBack={()=>setSelectedResponse(null)} onSupplierUpdated={updateSupplierTax}/></div></div>}
     </div>
   );
 }
@@ -2379,10 +1441,6 @@ function OpportunityCard({
           >
             {opportunity.title}
           </h3>
-
-          <p className="mt-1 text-[10px] text-neutral-400">
-            {opportunity.reference}
-          </p>
         </div>
 
         <OpportunityStatusBadge
@@ -2472,16 +1530,7 @@ function OpportunityCard({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Users className="h-3.5 w-3.5 text-neutral-400" />
 
-          <span className="text-xs font-semibold text-neutral-600">
-            {opportunity.responses.length}{" "}
-            {opportunity.responses.length === 1
-              ? "response"
-              : "responses"}
-          </span>
-        </div>
       </div>
 
       <div
@@ -2496,7 +1545,7 @@ function OpportunityCard({
           text-[#201E64]
         "
       >
-        View responses
+        View opportunity
 
         <ChevronRight className="h-3.5 w-3.5" />
       </div>
@@ -2546,10 +1595,11 @@ function OpportunityList({
     );
   }, [opportunities, search]);
 
-  const label =
-    type === "tender"
-      ? "Tenders"
-      : "RFQs";
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
+  useEffect(() => { setPage(1); }, [search, type]);
+  const pageRows = filtered.slice((page-1)*pageSize, page*pageSize);
+  const label = type === "tender" ? "Tenders" : "RFQs";
 
   return (
     <>
@@ -2642,7 +1692,7 @@ function OpportunityList({
           md:hidden
         "
       >
-        {filtered.map((opportunity) => (
+        {pageRows.map((opportunity) => (
           <OpportunityCard
             key={opportunity.id}
             opportunity={opportunity}
@@ -2677,19 +1727,11 @@ function OpportunityList({
                 </th>
 
                 <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-neutral-400">
-                  Reference
-                </th>
-
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-neutral-400">
                   Target
                 </th>
 
                 <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-neutral-400">
                   Closing
-                </th>
-
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-neutral-400">
-                  Responses
                 </th>
 
                 <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-neutral-400">
@@ -2703,7 +1745,7 @@ function OpportunityList({
             </thead>
 
             <tbody>
-              {filtered.map((opportunity) => (
+              {pageRows.map((opportunity) => (
                 <tr
                   key={opportunity.id}
                   onClick={() =>
@@ -2731,10 +1773,6 @@ function OpportunityList({
                     </p>
                   </td>
 
-                  <td className="px-4 py-3 text-xs text-neutral-600">
-                    {opportunity.reference}
-                  </td>
-
                   <td className="px-4 py-3">
                     <p className="max-w-[220px] truncate text-xs text-neutral-600">
                       {opportunity.industries?.join(
@@ -2747,25 +1785,6 @@ function OpportunityList({
                     {formatDate(
                       opportunity.closingDate
                     )}
-                  </td>
-
-                  <td className="px-4 py-3">
-                    <div
-                      className="
-                        inline-flex
-                        items-center
-                        gap-2
-                        bg-neutral-100
-                        px-2
-                        py-1
-                      "
-                    >
-                      <Users className="h-3.5 w-3.5 text-neutral-500" />
-
-                      <span className="text-xs font-bold text-neutral-700">
-                        {opportunity.responses.length}
-                      </span>
-                    </div>
                   </td>
 
                   <td className="px-4 py-3">
@@ -2794,7 +1813,7 @@ function OpportunityList({
                     >
                       <Eye className="h-3.5 w-3.5" />
 
-                      View Responses
+                      View Opportunity
                     </button>
                   </td>
                 </tr>
@@ -2803,6 +1822,8 @@ function OpportunityList({
           </table>
         </div>
       )}
+
+      {filtered.length > 0 && <Pagination page={page} setPage={setPage} total={filtered.length} pageSize={pageSize} />}
 
       {/* EMPTY */}
 
@@ -2838,114 +1859,123 @@ function OpportunityList({
 // ======================================================
 
 export default function OpportunitiesScreen() {
-  const [activeTab, setActiveTab] =
-    useState("tenders");
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const [activeTab, setActiveTab] = useState("tenders");
+  const [tenders, setTenders] = useState([]);
+  const [rfqs, setRfqs] = useState([]);
+  const sectors = INDUSTRY_SECTORS;
+  const [tenderSearch, setTenderSearch] = useState("");
+  const [rfqSearch, setRfqSearch] = useState("");
+  const [selectedOpportunity, setSelectedOpportunity] = useState(null);
+  const [selectedType, setSelectedType] = useState("tender");
+  const [loading, setLoading] = useState(true);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [apiError, setApiError] = useState("");
 
-  const [tenders, setTenders] =
-    useState(INITIAL_TENDERS);
-
-  const [rfqs, setRfqs] =
-    useState(INITIAL_RFQS);
-
-  const [tenderSearch, setTenderSearch] =
-    useState("");
-
-  const [rfqSearch, setRfqSearch] =
-    useState("");
-
-  const [
-    selectedOpportunity,
-    setSelectedOpportunity,
-  ] = useState(null);
-
-  // ======================================================
-  // CREATE TENDER
-  // ======================================================
-
-  const handleCreateTender = (data) => {
-    const number = tenders.length + 1;
-
-    const newTender = {
-      ...data,
-
-      id: Date.now(),
-
-      reference: `TH-TEN-${String(
-        number
-      ).padStart(3, "0")}`,
-    };
-
-    setTenders((current) => [
-      newTender,
-      ...current,
-    ]);
-
-    console.log(
-      "Tender created:",
-      newTender
-    );
-
-    // API LATER:
-    //
-    // const formData = new FormData();
-    // formData.append("title", data.title);
-    // formData.append("description", data.description);
-    // formData.append("closing_date", data.closingDate);
-    // formData.append("location", data.location);
-    // formData.append("document", data.document);
-    //
-    // await axios.post(
-    //   "http://localhost:5000/api/tender",
-    //   formData
-    // );
+  const loadOpportunities = async () => {
+    setLoading(true);
+    try {
+      const [tenderResult, rfqResult] = await Promise.allSettled([
+        apiRequest(ENDPOINTS.tenders),
+        apiRequest(ENDPOINTS.rfqs),
+      ]);
+      const errors = [];
+      if (tenderResult.status === "fulfilled") {
+        setTenders(extractArray(tenderResult.value, ["tenders", "opportunities"])
+          .map((r) => normalizeOpportunity(r, "tender")));
+      } else {
+        setTenders([]);
+        errors.push(`Tenders: ${tenderResult.reason.message}`);
+      }
+      if (rfqResult.status === "fulfilled") {
+        setRfqs(extractArray(rfqResult.value, ["rfqs", "opportunities"])
+          .map((r) => normalizeOpportunity(r, "rfq")));
+      } else {
+        setRfqs([]);
+        errors.push(`RFQs: ${rfqResult.reason.message}`);
+      }
+      setApiError(errors.join(" | "));
+    } catch (error) {
+      setApiError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ======================================================
-  // CREATE RFQ
-  // ======================================================
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      setLoading(false);
+      setApiError("Please log in to view opportunities.");
+      return;
+    }
+    loadOpportunities();
+  }, [authLoading, isAuthenticated]);
 
-  const handleCreateRfq = (data) => {
-    const number = rfqs.length + 1;
+  const openOpportunity = async (item, type) => {
+    const id = type === "tender"
+      ? (item.tender_id ?? item.id)
+      : (item.rfq_id ?? item.id);
+    if (id == null) {
+      setApiError(`Cannot open ${type}: missing opportunity ID.`);
+      return;
+    }
 
-    const newRfq = {
-      ...data,
-
-      id: Date.now(),
-
-      reference: `TH-RFQ-${String(
-        number
-      ).padStart(3, "0")}`,
-    };
-
-    setRfqs((current) => [
-      newRfq,
-      ...current,
-    ]);
-
-    console.log(
-      "RFQ created:",
-      newRfq
-    );
-
-    // API LATER:
-    //
-    // const formData = new FormData();
-    // formData.append("title", data.title);
-    // formData.append("description", data.description);
-    // formData.append("closing_date", data.closingDate);
-    // formData.append("location", data.location);
-    //
-    // data.industries.forEach((industry) => {
-    //   formData.append("industries", industry);
-    // });
-    //
-    // formData.append("document", data.document);
-    //
-    // await axios.post(
-    //   "http://localhost:5000/api/rfq",
-    //   formData
-    // );
+    setSelectedOpportunity(null);
+    setSelectedType(type);
+    setLoadingDetails(true);
+    setApiError("");
+    try {
+      // Fetch responses for this selected opportunity, not the full listing.
+      const path = type === "tender"
+        ? ENDPOINTS.tenderDetails(id)
+        : ENDPOINTS.rfqDetails(id);
+      const result = await apiRequest(path);
+      const details = normalizeDetails(result, type);
+      console.log(`[Opportunities] GET ${path}`, result);
+      console.log(`[Opportunities] ${type} ${id}: ${details.responses.length} responses loaded`, details.responses);
+      setSelectedOpportunity(details);
+    } catch (error) {
+      console.error(`[Opportunities] Failed to load ${type} ${id}:`, error);
+      setApiError(`Could not load ${type} responses: ${error.message}`);
+    } finally {
+      setLoadingDetails(false);
+    }
   };
+
+  const createOpportunity = async (data, type) => {
+    const formData = new FormData();
+    const payload = {
+      title: data.title,
+      description: data.description,
+      closing_date: data.closingDate,
+      location: data.location,
+      ...(type === "rfq" ? { sector_ids: data.sector_ids } : {}),
+    };
+    // published_by should ideally be obtained from the verified JWT on the backend.
+    // If your current controller still requires it, populate from your logged-in user.
+    const userId = Number(user?.user_id);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      throw new Error("User ID is missing from your login session. Please log in again.");
+    }
+    payload.published_by = userId;
+    formData.append(type === "rfq" ? "rfqData" : "tenderData", JSON.stringify(payload));
+    formData.append("opportunity_document", data.document);
+
+    await apiRequest(type === "rfq" ? ENDPOINTS.createRfq : ENDPOINTS.createTender, {
+      method: "POST",
+      body: formData,
+    });
+    await loadOpportunities();
+    setActiveTab(type === "rfq" ? "rfqs" : "tenders");
+  };
+
+  const handleCreateTender = (data) => createOpportunity(data, "tender");
+  const handleCreateRfq = (data) => createOpportunity(data, "rfq");
+
+  if (selectedOpportunity) {
+    return <OpportunityDetailsScreen key={`${selectedType}-${selectedOpportunity.id}`} opportunity={selectedOpportunity} type={selectedType} onBack={() => setSelectedOpportunity(null)} />;
+  }
 
   return (
     <>
@@ -3145,6 +2175,8 @@ export default function OpportunitiesScreen() {
         ================================================== */}
 
         <div className="mt-5">
+          {apiError && <div role="alert" className="mb-4 border border-red-200 bg-red-50 p-3 text-xs text-red-700">{apiError}</div>}
+          {(loading || loadingDetails) && <p className="mb-3 text-xs text-neutral-500">{loadingDetails ? "Loading opportunity details..." : "Loading opportunities..."}</p>}
           {/* TENDERS */}
 
           {activeTab === "tenders" && (
@@ -3153,9 +2185,7 @@ export default function OpportunitiesScreen() {
               type="tender"
               search={tenderSearch}
               setSearch={setTenderSearch}
-              onSelect={
-                setSelectedOpportunity
-              }
+              onSelect={(item) => openOpportunity(item, "tender")}
             />
           )}
 
@@ -3167,9 +2197,7 @@ export default function OpportunitiesScreen() {
               type="rfq"
               search={rfqSearch}
               setSearch={setRfqSearch}
-              onSelect={
-                setSelectedOpportunity
-              }
+              onSelect={(item) => openOpportunity(item, "rfq")}
             />
           )}
 
@@ -3180,9 +2208,8 @@ export default function OpportunitiesScreen() {
               onCreateTender={
                 handleCreateTender
               }
-              onCreateRfq={
-                handleCreateRfq
-              }
+              onCreateRfq={handleCreateRfq}
+              sectors={sectors}
             />
           )}
         </div>
@@ -3192,24 +2219,7 @@ export default function OpportunitiesScreen() {
           OPPORTUNITY DETAILS
       ================================================== */}
 
-      <OpportunityDetailsModal
-        key={
-          selectedOpportunity
-            ? `${activeTab}-${selectedOpportunity.id}`
-            : "closed"
-        }
-        opportunity={
-          selectedOpportunity
-        }
-        type={
-          activeTab === "rfqs"
-            ? "rfq"
-            : "tender"
-        }
-        onClose={() =>
-          setSelectedOpportunity(null)
-        }
-      />
+
     </>
   );
 }

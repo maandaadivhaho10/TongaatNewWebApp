@@ -1,1266 +1,581 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+
 import {
-  Search,
-  Users,
-  Building2,
-  MapPin,
-  BriefcaseBusiness,
-  BadgeCheck,
-  Wallet,
-  UserRound,
-  X,
-  ChevronRight,
+
+  Search, Users, Building2, MapPin, BriefcaseBusiness, BadgeCheck,
+
+  Wallet, UserRound, X, ChevronRight, FileText, CheckCircle2,
+
+  XCircle, ExternalLink, RefreshCw, ShieldCheck, Phone, Mail,
+
+  Eye, EyeOff, Save,
+
 } from "lucide-react";
+
+import api from "../../API/axiosInstance";
+import { useAuth } from "../../context/AuthContext";
 
 const NAVY = "#201E64";
 
-// ======================================================
-// DUMMY SUPPLIER DATA
-// Replace with API data later
-// ======================================================
+// API paths are relative to the shared Axios baseURL (/api).
 
-const SUPPLIERS = [
-  {
-    id: 1,
-    firstName: "Thabo",
-    lastName: "Mokoena",
-    company: "Mokoena Agricultural Services",
-    email: "thabo@mokoena.co.za",
-    phone: "071 234 5678",
+const SUPPLIERS_ENDPOINT = "/suppliers";
 
-    beeLevel: "Level 1",
-    bwoOwnership: 100,
-    boOwnership: 100,
+const TAX_STATUS_ENDPOINT = (id) => `/tax-compliance/${id}/status`;
 
-    serviceOffered:
-      "Agricultural services, crop maintenance and farm support",
+const TAX_PIN_ENDPOINT = (id) => `/tax-compliance/${id}/pin`;
 
-    locality: "Johannesburg, Gauteng",
+const TAX_STATUSES = ["NOT_VERIFIED", "COMPLIANT", "NON_COMPLIANT"];
 
-    annualRevenue: "R1,000,000 - R5,000,000",
+const REQUIREMENTS = [
 
-    permanentEmployees: 12,
-  },
+  { key: "bee_document", label: "B-BBEE Certificate / Affidavit" },
 
-  {
-    id: 2,
-    firstName: "Lerato",
-    lastName: "Nkosi",
-    company: "Nkosi Logistics Solutions",
-    email: "lerato@nkosilogistics.co.za",
-    phone: "072 555 8214",
+  { key: "financial_statement", label: "Financial Statement" },
 
-    beeLevel: "Level 2",
-    bwoOwnership: 51,
-    boOwnership: 75,
+  { key: "company_registration", label: "Company Registration" },
 
-    serviceOffered:
-      "Transportation, logistics and freight services",
+  { key: "vat_registration", label: "VAT Registration" },
 
-    locality: "Durban, KwaZulu-Natal",
+  { key: "tax_compliance_pin", label: "Tax Compliance PIN" },
 
-    annualRevenue: "R5,000,000 - R10,000,000",
-
-    permanentEmployees: 28,
-  },
-
-  {
-    id: 3,
-    firstName: "Nomsa",
-    lastName: "Dlamini",
-    company: "Dlamini Business Solutions",
-    email: "nomsa@dlaminibusiness.co.za",
-    phone: "073 441 2209",
-
-    beeLevel: "Level 1",
-    bwoOwnership: 100,
-    boOwnership: 100,
-
-    serviceOffered:
-      "Business consulting and administrative services",
-
-    locality: "Pretoria, Gauteng",
-
-    annualRevenue: "R500,000 - R1,000,000",
-
-    permanentEmployees: 7,
-  },
-
-  {
-    id: 4,
-    firstName: "Sipho",
-    lastName: "Khumalo",
-    company: "Khumalo Engineering",
-    email: "sipho@khumaloengineering.co.za",
-    phone: "074 998 1132",
-
-    beeLevel: "Level 3",
-    bwoOwnership: 30,
-    boOwnership: 60,
-
-    serviceOffered:
-      "Engineering, maintenance and equipment repairs",
-
-    locality: "Richards Bay, KwaZulu-Natal",
-
-    annualRevenue: "R10,000,000 - R20,000,000",
-
-    permanentEmployees: 42,
-  },
-
-  {
-    id: 5,
-    firstName: "Amanda",
-    lastName: "Ndlovu",
-    company: "Ndlovu Cleaning Services",
-    email: "amanda@ndlovucleaning.co.za",
-    phone: "076 334 8821",
-
-    beeLevel: "Level 1",
-    bwoOwnership: 100,
-    boOwnership: 100,
-
-    serviceOffered:
-      "Commercial cleaning and facilities management",
-
-    locality: "Johannesburg, Gauteng",
-
-    annualRevenue: "R1,000,000 - R5,000,000",
-
-    permanentEmployees: 34,
-  },
-
-  {
-    id: 6,
-    firstName: "Mpho",
-    lastName: "Mahlangu",
-    company: "Mahlangu ICT Solutions",
-    email: "mpho@mahlanguict.co.za",
-    phone: "078 229 4110",
-
-    beeLevel: "Level 2",
-    bwoOwnership: 40,
-    boOwnership: 80,
-
-    serviceOffered:
-      "ICT support, software development and cloud services",
-
-    locality: "Midrand, Gauteng",
-
-    annualRevenue: "R5,000,000 - R10,000,000",
-
-    permanentEmployees: 18,
-  },
 ];
 
-// ======================================================
-// DETAIL ITEM
-// ======================================================
+const provided = (status) => ["SUBMITTED", "PROVIDED", "REGISTERED"].includes(String(status || "").toUpperCase());
 
-function DetailItem({
-  icon: Icon,
-  label,
-  value,
-}) {
-  return (
-    <div
-      className="
-        flex
-        items-start
-        gap-3
-        border
-        border-neutral-200
-        bg-neutral-50
-        p-3
-      "
-    >
-      <div
-        className="
-          flex
-          h-8
-          w-8
-          shrink-0
-          items-center
-          justify-center
-          bg-[#201E64]/10
-        "
-      >
-        <Icon
-          className="h-4 w-4"
-          style={{ color: NAVY }}
-        />
-      </div>
+const display = (value) => value === null || value === undefined || value === "" ? "Not provided" : String(value);
 
-      <div className="min-w-0">
-        <p
-          className="
-            text-[10px]
-            font-bold
-            uppercase
-            tracking-wide
-            text-neutral-400
-          "
-        >
-          {label}
-        </p>
+const formatBee = (value) => {
 
-        <p
-          className="
-            mt-1
-            break-words
-            text-xs
-            font-semibold
-            leading-5
-            text-neutral-800
-            sm:text-sm
-          "
-        >
-          {value}
-        </p>
-      </div>
-    </div>
-  );
+  const raw = String(value ?? "").trim();
+
+  if (!raw) return "Not provided";
+
+  if (/^(?:level\s*)?[1-8]$/i.test(raw)) return `Level ${raw.match(/[1-8]/)[0]}`;
+
+  return raw;
+
+};
+
+const formatPercent = (value) => value === null || value === undefined || value === "" ? "Not provided" : `${Number(value)}%`;
+
+const formatMoney = (value, range) => {
+
+  if (value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))) {
+
+    return new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(Number(value));
+
+  }
+
+  return range || "Not provided";
+
+};
+
+const labelStatus = (value) => ({
+
+  NOT_VERIFIED: "Not verified", COMPLIANT: "Compliant", NON_COMPLIANT: "Non-compliant",
+
+  SUBMITTED: "Submitted", NOT_SUBMITTED: "Not submitted", REGISTERED: "Registered",
+
+  NOT_REGISTERED: "Not registered", PROVIDED: "Provided", NOT_PROVIDED: "Not provided",
+
+}[value] || display(value));
+
+const docStatuses = (supplier) => ({
+
+  bee_document: supplier.document_status?.bee_document || (supplier.bee_document_submitted ? "SUBMITTED" : "NOT_SUBMITTED"),
+
+  financial_statement: supplier.document_status?.financial_statement || (supplier.has_financial_statement ? "SUBMITTED" : "NOT_SUBMITTED"),
+
+  company_registration: supplier.document_status?.company_registration || (supplier.has_company_registration_document ? "SUBMITTED" : "NOT_SUBMITTED"),
+
+  vat_registration: supplier.document_status?.vat_registration || (supplier.has_vat_registration ? "REGISTERED" : "NOT_REGISTERED"),
+
+  tax_compliance_pin: supplier.document_status?.tax_compliance_pin || (supplier.has_tax_compliance_pin ? "PROVIDED" : "NOT_PROVIDED"),
+
+});
+
+// An affidavit is viewable but earns no B-BBEE document point.
+
+// If the API does not identify the document type, do not award that point.
+
+const beeDocumentType = (supplier) => {
+
+  const explicit = String(supplier.bee_document_type || "").toUpperCase();
+
+  if (explicit.includes("AFFIDAVIT")) return "BEE_AFFIDAVIT";
+
+  if (explicit.includes("CERTIFICATE")) return "BEE_CERTIFICATE";
+
+  const documents = supplier.documents || [];
+
+  if (documents.some((doc) => String(doc.document_type).toUpperCase() === "BEE_AFFIDAVIT")) {
+
+    return "BEE_AFFIDAVIT";
+
+  }
+
+  if (documents.some((doc) => String(doc.document_type).toUpperCase() === "BEE_CERTIFICATE")) {
+
+    return "BEE_CERTIFICATE";
+
+  }
+
+  return null;
+
+};
+
+const earnsDocumentPoint = (supplier, key) => {
+
+  if (!provided(docStatuses(supplier)[key])) return false;
+
+  if (key === "bee_document") return beeDocumentType(supplier) === "BEE_CERTIFICATE";
+
+  return true;
+
+};
+
+const docScore = (supplier) => REQUIREMENTS.filter(({ key }) => earnsDocumentPoint(supplier, key)).length;
+
+const SCORE_FILTERS = [
+
+  { key: "all", label: "All Suppliers", match: () => true },
+
+  { key: "compliant", label: "Compliant", match: (score) => score === 5 },
+
+  { key: "semi", label: "Semi-compliant", match: (score) => score >= 3 && score <= 4 },
+
+  { key: "non", label: "Non-compliant", match: (score) => score >= 1 && score <= 2 },
+
+];
+
+const documentUrl = (supplier, key) => {
+
+  const types = {
+
+    bee_document: ["BEE_CERTIFICATE", "BEE_AFFIDAVIT"],
+
+    financial_statement: ["FINANCIAL_STATEMENT"],
+
+    company_registration: ["COMPANY_REGISTRATION"],
+
+  };
+
+  const doc = (supplier.documents || []).find((d) => types[key]?.includes(d.document_type));
+
+  return doc?.document_path || ({
+
+    bee_document: supplier.bee_document_url,
+
+    financial_statement: supplier.financial_statement_url,
+
+    company_registration: supplier.company_registration_document_url,
+
+  })[key] || null;
+
+};
+
+const safeHttps = (value) => {
+
+  try { return new URL(value).protocol === "https:"; } catch { return false; }
+
+};
+
+function StatusPill({ status }) {
+
+  const ok = provided(status) || status === "COMPLIANT";
+
+  return <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold ${ok ? "bg-green-50 text-green-700" : status === "NON_COMPLIANT" ? "bg-red-50 text-red-700" : "bg-neutral-100 text-neutral-600"}`}>
+
+    {ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}{labelStatus(status)}
+
+  </span>;
+
 }
 
-// ======================================================
-// SUPPLIER DETAILS
-// ======================================================
+function DetailItem({ icon: Icon, label, value }) {
 
-function SupplierDetails({
-  supplier,
-  onClose,
-}) {
+  return <div className="flex gap-3 border border-neutral-200 bg-neutral-50 p-3">
+
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#201E64]/10"><Icon size={17} color={NAVY} /></div>
+
+    <div className="min-w-0"><p className="text-[11px] font-bold uppercase tracking-wide text-neutral-400">{label}</p><p className="mt-1 break-words text-sm font-semibold text-neutral-800">{display(value)}</p></div>
+
+  </div>;
+
+}
+
+function DocumentScore({ supplier, onClick }) {
+
+  return <button type="button" onClick={onClick} title="View document details" className="inline-flex items-center gap-2 border border-neutral-200 px-3 py-2 text-xs font-bold text-[#201E64] hover:bg-[#201E64]/5">
+
+    <FileText size={16} />{docScore(supplier)}/5 <ChevronRight size={14} />
+
+  </button>;
+
+}
+
+function TaxCompliancePanel({ supplier, onUpdated }) {
+
+  const [status, setStatus] = useState(supplier.tax_compliance_status || "NOT_VERIFIED");
+
+  const [saving, setSaving] = useState(false);
+
+  const [saveMessage, setSaveMessage] = useState("");
+
+  const [saveError, setSaveError] = useState("");
+
+  const [pin, setPin] = useState(null);
+
+  const [showPin, setShowPin] = useState(false);
+
+  const [pinLoading, setPinLoading] = useState(false);
+
+  const [pinError, setPinError] = useState("");
+
+  useEffect(() => {
+
+    setStatus(supplier.tax_compliance_status || "NOT_VERIFIED");
+
+    setPin(null); setShowPin(false); setPinError(""); setSaveError(""); setSaveMessage("");
+
+  }, [supplier.business_id, supplier.tax_compliance_status]);
+
+  const save = async () => {
+
+    setSaving(true); setSaveError(""); setSaveMessage("");
+
+    try {
+
+      const response = await api.patch(TAX_STATUS_ENDPOINT(supplier.business_id), { tax_compliance_status: status });
+
+      const next = response.data?.data?.tax_compliance_status || status;
+
+      onUpdated(supplier.business_id, next);
+
+      setSaveMessage("Tax compliance status updated successfully.");
+
+    } catch (err) {
+
+      setSaveError(err.response?.data?.message || "Unable to update tax compliance status.");
+
+    } finally { setSaving(false); }
+
+  };
+
+  const togglePin = async () => {
+
+    if (showPin) { setShowPin(false); setPin(null); return; }
+
+    setPinLoading(true); setPinError("");
+
+    try {
+
+      const response = await api.get(TAX_PIN_ENDPOINT(supplier.business_id));
+
+      const fetched = response.data?.tax_compliance_pin ?? response.data?.data?.tax_compliance_pin;
+
+      if (!fetched) throw new Error("The PIN was not returned by the server.");
+
+      setPin(String(fetched)); setShowPin(true);
+
+    } catch (err) {
+
+      setPinError(err.response?.data?.message || err.message || "Unable to retrieve the PIN.");
+
+    } finally { setPinLoading(false); }
+
+  };
+
+  const hasPin = provided(docStatuses(supplier).tax_compliance_pin);
+
+  return <section className="space-y-4 border border-neutral-200 bg-neutral-50 p-4">
+
+    <div className="flex flex-wrap items-center justify-between gap-2">
+
+      <h3 className="flex items-center gap-2 text-sm font-bold text-[#201E64]"><ShieldCheck size={18} /> Tax Compliance</h3>
+
+      <StatusPill status={supplier.tax_compliance_status || "NOT_VERIFIED"} />
+
+    </div>
+
+    <div className="grid gap-3 sm:grid-cols-2">
+
+      <div className="border border-neutral-200 bg-white p-3">
+
+        <p className="mb-2 text-xs font-semibold text-neutral-500">Tax Compliance PIN</p>
+
+        {hasPin ? <>
+
+          <p className="break-all font-mono text-sm font-semibold text-neutral-800">{showPin ? pin : "•••••••• (hidden)"}</p>
+
+          <button type="button" onClick={togglePin} disabled={pinLoading} className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#201E64] disabled:opacity-50">
+
+            {showPin ? <EyeOff size={15} /> : <Eye size={15} />}{pinLoading ? "Loading..." : showPin ? "Hide PIN" : "Show PIN"}
+
+          </button>
+
+        </> : <p className="text-xs text-neutral-500">Not provided</p>}
+
+        {pinError && <p role="alert" className="mt-2 text-xs text-red-700">{pinError}</p>}
+
+      </div>
+
+      <div className="border border-neutral-200 bg-white p-3">
+
+        <label htmlFor="tax-compliance-select" className="mb-2 block text-xs font-semibold text-neutral-500">Tax Compliance Status</label>
+
+        <select id="tax-compliance-select" value={status} onChange={(e) => { setStatus(e.target.value); setSaveMessage(""); }} className="w-full border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-[#201E64] focus:outline-none">
+
+          {TAX_STATUSES.map((item) => <option key={item} value={item}>{labelStatus(item)}</option>)}
+
+        </select>
+
+        <button type="button" disabled={saving || status === (supplier.tax_compliance_status || "NOT_VERIFIED")} onClick={save} className="mt-3 inline-flex items-center gap-2 bg-[#201E64] px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"><Save size={14} />{saving ? "Saving..." : "Update Status"}</button>
+
+        {saveMessage && <p role="status" className="mt-2 text-xs text-green-700">{saveMessage}</p>}
+
+        {saveError && <p role="alert" className="mt-2 text-xs text-red-700">{saveError}</p>}
+
+      </div>
+
+    </div>
+
+    <p className="text-xs leading-5 text-neutral-500">A submitted PIN does not confirm tax compliance. Only mark a business as compliant after verifying its status through an authorized SARS process.</p>
+
+  </section>;
+
+}
+
+function DocumentsTab({ supplier, onUpdated }) {
+
+  const statuses = docStatuses(supplier);
+
+  const score = docScore(supplier);
+
+  return <div className="space-y-4">
+
+    <div className="border border-neutral-200 bg-neutral-50 p-4">
+
+      <div className="flex items-center justify-between"><div><p className="text-xs font-semibold text-neutral-500">Document Submission Score</p><h3 className="mt-1 text-2xl font-extrabold text-[#201E64]">{score}/5</h3></div><ShieldCheck size={30} color={NAVY} /></div>
+
+      <div className="mt-3 h-2 bg-neutral-200"><div className="h-full bg-[#201E64]" style={{ width: `${score * 20}%` }} /></div>
+
+      <p className="mt-2 text-xs text-neutral-500">Affidavits do not earn a point. This is a document-submission score, not an official compliance rating.</p>
+
+    </div>
+
+    <div className="space-y-2">
+
+      {REQUIREMENTS.map(({ key, label }) => {
+
+        const status = statuses[key]; const url = documentUrl(supplier, key);
+
+        return <div key={key} className="flex flex-col gap-2 border border-neutral-200 p-3 sm:flex-row sm:items-center sm:justify-between">
+
+          <div className="min-w-0"><p className="text-sm font-semibold text-neutral-800">{label}</p>
+
+            {key === "bee_document" && <p className="text-xs text-neutral-500">{beeDocumentType(supplier) === "BEE_AFFIDAVIT" ? "Affidavit submitted — 0 points" : beeDocumentType(supplier) === "BEE_CERTIFICATE" ? "Certificate — eligible for 1 point when submitted" : "Document type not confirmed — 0 points"}</p>}
+
+            {key === "vat_registration" && supplier.vat_registration_number && <p className="text-xs text-neutral-500">VAT No: {supplier.vat_registration_number}</p>}
+
+            {provided(status) && safeHttps(url) && <a className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#201E64] hover:underline" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={13} /> View document</a>}
+
+          </div><div className="flex items-center gap-2"><StatusPill status={status} /><span className="text-xs font-bold text-neutral-600">{earnsDocumentPoint(supplier, key) ? "+1" : "+0"}</span></div>
+
+        </div>;
+
+      })}
+
+    </div>
+
+    <TaxCompliancePanel supplier={supplier} onUpdated={onUpdated} />
+
+  </div>;
+
+}
+
+export function SupplierDetails({ supplier, initialTab, onClose, onUpdated }) {
+
+  const [tab, setTab] = useState(initialTab);
+
+  useEffect(() => { setTab(initialTab); }, [supplier?.user_id, initialTab]);
+
+  useEffect(() => {
+
+    if (!supplier) return;
+
+    const onEscape = (event) => { if (event.key === "Escape") onClose(); };
+
+    window.addEventListener("keydown", onEscape);
+
+    return () => window.removeEventListener("keydown", onEscape);
+
+  }, [supplier, onClose]);
+
   if (!supplier) return null;
 
-  const fullName =
-    `${supplier.firstName} ${supplier.lastName}`;
+  const name = [supplier.title, supplier.first_name, supplier.last_name].filter(Boolean).join(" ");
 
-  return (
-    <div
-      className="
-        fixed
-        inset-0
-        z-[100]
-        flex
-        items-end
-        justify-center
-        bg-black/40
-        sm:items-center
-        sm:p-5
-      "
-      onClick={onClose}
-    >
-      <div
-        className="
-          flex
-          max-h-[90dvh]
-          w-full
-          flex-col
-          overflow-hidden
-          bg-white
-          shadow-xl
-          sm:max-w-3xl
-        "
-        onClick={(event) =>
-          event.stopPropagation()
-        }
-      >
-        {/* HEADER */}
+  const info = [
 
-        <div
-          className="
-            flex
-            shrink-0
-            items-start
-            justify-between
-            gap-4
-            border-b
-            border-neutral-200
-            px-4
-            py-4
-            sm:px-5
-          "
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="
-                flex
-                h-11
-                w-11
-                shrink-0
-                items-center
-                justify-center
-                bg-[#201E64]/10
-              "
-            >
-              <UserRound
-                className="h-5 w-5"
-                style={{ color: NAVY }}
-              />
-            </div>
+    [Mail, "Email", supplier.email], [Phone, "Phone", supplier.phone_number],
 
-            <div className="min-w-0">
-              <h2
-                className="
-                  truncate
-                  text-lg
-                  font-bold
-                  sm:text-xl
-                "
-                style={{ color: NAVY }}
-              >
-                {fullName}
-              </h2>
+    [Building2, "Company", supplier.business_name], [BadgeCheck, "B-BBEE Level", formatBee(supplier.bee_level)],
 
-              <p
-                className="
-                  mt-0.5
-                  truncate
-                  text-xs
-                  text-neutral-500
-                "
-              >
-                {supplier.company}
-              </p>
-            </div>
-          </div>
+    [UserRound, "BWO Ownership", formatPercent(supplier.bwo_ownership_percentage)],
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close supplier details"
-            className="
-              flex
-              h-9
-              w-9
-              shrink-0
-              items-center
-              justify-center
-              text-neutral-500
-              transition
-              hover:bg-neutral-100
-              hover:text-neutral-900
-            "
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    [Users, "BO Ownership", formatPercent(supplier.bo_ownership_percentage)],
 
-        {/* CONTENT */}
+    [BriefcaseBusiness, "Services Offered", supplier.services], [MapPin, "Business Address", supplier.business_address],
 
-        <div
-          className="
-            flex-1
-            overflow-y-auto
-            p-4
-            sm:p-5
-          "
-        >
-          {/* CONTACT */}
+    [Building2, "Community", supplier.community], [BriefcaseBusiness, "Industry", supplier.industry],
 
-          <div
-            className="
-              mb-5
-              border-b
-              border-neutral-200
-              pb-4
-            "
-          >
-            <h3
-              className="
-                text-sm
-                font-bold
-              "
-              style={{ color: NAVY }}
-            >
-              Supplier Information
-            </h3>
+    [Wallet, "Annual Revenue", formatMoney(supplier.annual_revenue, supplier.annual_revenue_range)],
 
-            <div
-              className="
-                mt-3
-                grid
-                grid-cols-1
-                gap-3
-                sm:grid-cols-2
-              "
-            >
-              <div>
-                <p className="text-[10px] font-bold uppercase text-neutral-400">
-                  Email
-                </p>
+    [Users, "Permanent Employees", supplier.permanent_employees], [Users, "Contract Employees", supplier.contract_employees],
 
-                <p className="mt-1 break-all text-xs text-neutral-700">
-                  {supplier.email}
-                </p>
-              </div>
+    [Wallet, "Largest Contract Value", formatMoney(supplier.largest_contract_value)],
 
-              <div>
-                <p className="text-[10px] font-bold uppercase text-neutral-400">
-                  Phone Number
-                </p>
+    [Building2, "Company Registration Number", supplier.company_registration_number],
 
-                <p className="mt-1 text-xs text-neutral-700">
-                  {supplier.phone}
-                </p>
-              </div>
-            </div>
-          </div>
+    [BadgeCheck, "VAT Registration Number", supplier.vat_registration_number],
 
-          {/* BUSINESS */}
+  ];
 
-          <h3
-            className="text-sm font-bold"
-            style={{ color: NAVY }}
-          >
-            Business Information
-          </h3>
+  return <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/50 sm:items-center sm:p-5" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
 
-          <div
-            className="
-              mt-3
-              grid
-              grid-cols-1
-              gap-3
-              sm:grid-cols-2
-            "
-          >
-            <DetailItem
-              icon={Building2}
-              label="Company"
-              value={supplier.company}
-            />
+    <div role="dialog" aria-modal="true" aria-label={`Supplier details: ${name}`} className="flex max-h-[95dvh] w-full flex-col overflow-hidden bg-white shadow-xl sm:max-h-[90dvh] sm:max-w-3xl">
 
-            <DetailItem
-              icon={BadgeCheck}
-              label="B-BBEE Level"
-              value={supplier.beeLevel}
-            />
+      <header className="flex items-center justify-between gap-3 border-b border-neutral-200 p-4 sm:p-5"><div className="min-w-0"><h2 className="truncate text-lg font-bold text-[#201E64]">{name}</h2><p className="truncate text-xs text-neutral-500">{supplier.business_name}</p></div><button type="button" aria-label="Close" onClick={onClose} className="p-2 hover:bg-neutral-100"><X size={20} /></button></header>
 
-            <DetailItem
-              icon={UserRound}
-              label="BWO Ownership"
-              value={`${supplier.bwoOwnership}%`}
-            />
+      <div className="flex border-b border-neutral-200 px-4">
 
-            <DetailItem
-              icon={Users}
-              label="BO Ownership"
-              value={`${supplier.boOwnership}%`}
-            />
+        {[ ["information", "Supplier Information"], ["documents", `Documents (${docScore(supplier)}/5)`] ].map(([value, label]) => <button type="button" key={value} onClick={() => setTab(value)} className={`border-b-2 px-3 py-3 text-xs font-bold ${tab === value ? "border-[#201E64] text-[#201E64]" : "border-transparent text-neutral-500"}`}>{label}</button>)}
 
-            <DetailItem
-              icon={BriefcaseBusiness}
-              label="Service Offered"
-              value={supplier.serviceOffered}
-            />
-
-            <DetailItem
-              icon={MapPin}
-              label="Locality"
-              value={supplier.locality}
-            />
-
-            <DetailItem
-              icon={Wallet}
-              label="Annual Revenue"
-              value={supplier.annualRevenue}
-            />
-
-            <DetailItem
-              icon={Users}
-              label="Permanent Employees"
-              value={
-                supplier.permanentEmployees
-              }
-            />
-          </div>
-        </div>
-
-        {/* FOOTER */}
-
-        <div
-          className="
-            flex
-            shrink-0
-            justify-end
-            border-t
-            border-neutral-200
-            p-4
-          "
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            className="
-              w-full
-              bg-[#201E64]
-              px-5
-              py-2.5
-              text-xs
-              font-bold
-              text-white
-              transition
-              hover:bg-[#2B2889]
-              sm:w-auto
-            "
-          >
-            Close
-          </button>
-        </div>
       </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+
+        {tab === "documents" ? <DocumentsTab supplier={supplier} onUpdated={onUpdated} /> : <div className="space-y-4"><div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{info.map(([Icon, label, value]) => <DetailItem key={label} icon={Icon} label={label} value={value} />)}</div><div className="flex flex-wrap gap-2"><StatusPill status={supplier.has_business_profile ? "SUBMITTED" : "NOT_SUBMITTED"} /><span className="bg-green-50 px-3 py-2 text-xs text-green-700">Business Profile & Maturity Registered</span></div></div>}
+
+      </div>
+
+      <footer className="flex justify-end border-t border-neutral-200 p-4"><button type="button" onClick={onClose} className="bg-[#201E64] px-5 py-2.5 text-xs font-bold text-white">Close</button></footer>
+
     </div>
-  );
+
+  </div>;
+
 }
-
-// ======================================================
-// SUPPLIER MOBILE CARD
-// ======================================================
-
-function SupplierCard({
-  supplier,
-  onClick,
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="
-        w-full
-        border
-        border-neutral-200
-        bg-white
-        p-4
-        text-left
-        shadow-sm
-        transition
-        hover:border-[#201E64]/40
-        focus:outline-none
-        focus-visible:ring-2
-        focus-visible:ring-[#201E64]
-      "
-    >
-      <div
-        className="
-          flex
-          items-start
-          gap-3
-        "
-      >
-        <div
-          className="
-            flex
-            h-10
-            w-10
-            shrink-0
-            items-center
-            justify-center
-            bg-[#201E64]/10
-          "
-        >
-          <UserRound
-            className="h-5 w-5"
-            style={{ color: NAVY }}
-          />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p
-            className="
-              truncate
-              text-sm
-              font-bold
-            "
-            style={{ color: NAVY }}
-          >
-            {supplier.firstName}{" "}
-            {supplier.lastName}
-          </p>
-
-          <p
-            className="
-              mt-0.5
-              truncate
-              text-xs
-              text-neutral-500
-            "
-          >
-            {supplier.company}
-          </p>
-        </div>
-
-        <ChevronRight
-          className="
-            mt-2
-            h-4
-            w-4
-            shrink-0
-            text-neutral-400
-          "
-        />
-      </div>
-
-      <div
-        className="
-          mt-3
-          flex
-          items-center
-          gap-2
-          border-t
-          border-neutral-100
-          pt-3
-          text-[11px]
-          text-neutral-500
-        "
-      >
-        <MapPin className="h-3.5 w-3.5 shrink-0" />
-
-        <span className="truncate">
-          {supplier.locality}
-        </span>
-      </div>
-    </button>
-  );
-}
-
-// ======================================================
-// SUPPLIERS SCREEN
-// ======================================================
 
 export default function SuppliersScreen() {
-  const [search, setSearch] =
-    useState("");
+  const { loading: authLoading, isAuthenticated } = useAuth();
 
-  const [
-    selectedSupplier,
-    setSelectedSupplier,
-  ] = useState(null);
+  const [suppliers, setSuppliers] = useState([]);
 
-  // ======================================================
-  // SEARCH
-  // ======================================================
+  const [search, setSearch] = useState("");
 
-  const filteredSuppliers = useMemo(() => {
-    const query = search
-      .trim()
-      .toLowerCase();
+  const [scoreFilter, setScoreFilter] = useState("all");
 
-    if (!query) {
-      return SUPPLIERS;
+  const [selectedId, setSelectedId] = useState(null);
+
+  const [initialTab, setInitialTab] = useState("information");
+
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState("");
+
+  const fetchSuppliers = useCallback(async () => {
+
+    setLoading(true); setError("");
+
+    try {
+
+      const response = await api.get(SUPPLIERS_ENDPOINT);
+
+      const payload = response.data;
+
+      const rows = Array.isArray(payload?.suppliers) ? payload.suppliers : Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
+
+      setSuppliers(rows.filter((s) => s.business_id != null && s.maturity_id != null));
+
+    } catch (err) { setError(err.response?.data?.message || "Unable to load suppliers. Check the API route and authentication."); }
+
+    finally { setLoading(false); }
+
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      setLoading(false);
+      setError("Please log in to view registered suppliers.");
+      return;
     }
+    fetchSuppliers();
+  }, [authLoading, isAuthenticated, fetchSuppliers]);
 
-    return SUPPLIERS.filter(
-      (supplier) => {
-        const fullName =
-          `${supplier.firstName} ${supplier.lastName}`.toLowerCase();
+  const filtered = useMemo(() => {
 
-        return (
-          fullName.includes(query) ||
-          supplier.company
-            .toLowerCase()
-            .includes(query) ||
-          supplier.locality
-            .toLowerCase()
-            .includes(query) ||
-          supplier.serviceOffered
-            .toLowerCase()
-            .includes(query) ||
-          supplier.beeLevel
-            .toLowerCase()
-            .includes(query)
-        );
-      }
-    );
-  }, [search]);
+    const selected = SCORE_FILTERS.find((item) => item.key === scoreFilter) || SCORE_FILTERS[0];
 
-  return (
-    <>
-      <div className="w-full">
-        {/* ==================================================
-            HEADER
-        ================================================== */}
+    const query = search.trim().toLowerCase();
 
-        <div
-          className="
-            mb-5
-            flex
-            flex-col
-            gap-4
-            lg:flex-row
-            lg:items-end
-            lg:justify-between
-          "
-        >
-          <div>
-            <h1
-              className="
-                text-2xl
-                font-extrabold
-                tracking-tight
-                sm:text-3xl
-              "
-              style={{ color: NAVY }}
-            >
-              Registered Suppliers
-            </h1>
+    return suppliers.filter((supplier) => {
 
-            <p
-              className="
-                mt-1
-                max-w-2xl
-                text-xs
-                leading-5
-                text-neutral-500
-                sm:text-sm
-              "
-            >
-              View registered suppliers and
-              their business information.
-            </p>
-          </div>
+      const matchesSearch = [supplier.first_name, supplier.last_name, supplier.business_name, supplier.community, supplier.services, supplier.industry, formatBee(supplier.bee_level)]
 
-          {/* TOTAL */}
+        .some((value) => String(value || "").toLowerCase().includes(query));
 
-          <div
-            className="
-              flex
-              w-fit
-              items-center
-              gap-2
-              bg-[#201E64]/10
-              px-3
-              py-2
-            "
-          >
-            <Users
-              className="h-4 w-4"
-              style={{ color: NAVY }}
-            />
+      return matchesSearch && selected.match(docScore(supplier));
 
-            <span
-              className="
-                text-xs
-                font-bold
-              "
-              style={{ color: NAVY }}
-            >
-              {SUPPLIERS.length} Registered
-              Suppliers
-            </span>
-          </div>
-        </div>
+    });
 
-        {/* ==================================================
-            SEARCH
-        ================================================== */}
+  }, [suppliers, search, scoreFilter]);
 
-        <div
-          className="
-            border
-            border-neutral-200
-            bg-white
-            p-3
-            shadow-sm
-            sm:p-4
-          "
-        >
-          <div
-            className="
-              relative
-              w-full
-              sm:max-w-md
-            "
-          >
-            <Search
-              className="
-                absolute
-                left-3
-                top-1/2
-                h-4
-                w-4
-                -translate-y-1/2
-                text-neutral-400
-              "
-            />
+  const selectedSupplier = suppliers.find((s) => s.user_id === selectedId) || null;
 
-            <input
-              type="search"
-              value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value
-                )
-              }
-              placeholder="Search supplier or company..."
-              className="
-                h-10
-                w-full
-                border
-                border-neutral-300
-                bg-white
-                pl-9
-                pr-3
-                text-xs
-                text-neutral-900
-                outline-none
-                transition
-                placeholder:text-neutral-400
-                focus:border-[#201E64]
-                focus:ring-1
-                focus:ring-[#201E64]/10
-                sm:text-sm
-              "
-            />
-          </div>
+  const onUpdated = (businessId, status) => setSuppliers((current) => current.map((s) => s.business_id === businessId ? { ...s, tax_compliance_status: status } : s));
 
-          <p
-            className="
-              mt-2
-              text-[10px]
-              text-neutral-400
-              sm:text-[11px]
-            "
-          >
-            Search by supplier name,
-            company, locality, service or
-            B-BBEE level.
-          </p>
-        </div>
+  const openSupplier = (supplier, tab) => { setInitialTab(tab); setSelectedId(supplier.user_id); };
 
-        {/* ==================================================
-            RESULTS HEADER
-        ================================================== */}
+  return <div className="w-full min-w-0">
 
-        <div
-          className="
-            mt-5
-            flex
-            items-center
-            justify-between
-            gap-3
-          "
-        >
-          <h2
-            className="
-              text-sm
-              font-bold
-              sm:text-base
-            "
-            style={{ color: NAVY }}
-          >
-            Suppliers
-          </h2>
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-2xl font-extrabold text-[#201E64] sm:text-3xl">Registered Suppliers</h1><p className="mt-1 text-sm text-neutral-500">Suppliers with both Business Profile and Business Maturity registrations.</p></div><div className="flex items-center gap-2"><span className="bg-[#201E64]/10 px-3 py-2 text-xs font-bold text-[#201E64]">{suppliers.length} Registered</span><button type="button" disabled={loading} onClick={fetchSuppliers} className="flex items-center gap-1 border border-neutral-200 px-3 py-2 text-xs font-semibold text-[#201E64]"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Refresh</button></div></div>
 
-          <span className="text-xs text-neutral-500">
-            {filteredSuppliers.length}{" "}
-            {filteredSuppliers.length === 1
-              ? "result"
-              : "results"}
-          </span>
-        </div>
+    <div className="relative border border-neutral-200 bg-white p-4"><Search size={17} className="absolute left-7 top-1/2 -translate-y-1/2 text-neutral-400" /><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search supplier or company..." className="w-full max-w-md border border-neutral-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#201E64]" /></div>
 
-        {/* ==================================================
-            DESKTOP / TABLET TABLE
-        ================================================== */}
+    <div className="mt-3 flex flex-wrap gap-2 border-b border-neutral-200 pb-3" role="group" aria-label="Filter suppliers by document submission score">
 
-        <div
-          className="
-            mt-3
-            hidden
-            overflow-hidden
-            border
-            border-neutral-200
-            bg-white
-            shadow-sm
-            md:block
-          "
-        >
-          <div className="overflow-x-auto">
-            <table
-              className="
-                w-full
-                min-w-[760px]
-              "
-            >
-              <thead
-                className="
-                  bg-neutral-50
-                "
-              >
-                <tr
-                  className="
-                    border-b
-                    border-neutral-200
-                  "
-                >
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-left
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Supplier
-                  </th>
+      {SCORE_FILTERS.map((filter) => {
 
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-left
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Company
-                  </th>
+        return <button key={filter.key} type="button" aria-pressed={scoreFilter === filter.key} onClick={() => setScoreFilter(filter.key)} className={`border px-3 py-2 text-xs font-semibold transition ${scoreFilter === filter.key ? "border-[#201E64] bg-[#201E64] text-white" : "border-neutral-200 bg-white text-neutral-600 hover:border-[#201E64]"}`}>
 
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-left
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Locality
-                  </th>
+          {filter.label}
 
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-left
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    B-BBEE
-                  </th>
+        </button>;
 
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-right
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Details
-                  </th>
-                </tr>
-              </thead>
+      })}
 
-              <tbody>
-                {filteredSuppliers.map(
-                  (supplier) => (
-                    <tr
-                      key={supplier.id}
-                      onClick={() =>
-                        setSelectedSupplier(
-                          supplier
-                        )
-                      }
-                      className="
-                        cursor-pointer
-                        border-b
-                        border-neutral-100
-                        transition
-                        last:border-b-0
-                        hover:bg-[#201E64]/[0.02]
-                      "
-                    >
-                      {/* NAME */}
+    </div>
 
-                      <td className="px-4 py-3">
-                        <div
-                          className="
-                            flex
-                            items-center
-                            gap-3
-                          "
-                        >
-                          <div
-                            className="
-                              flex
-                              h-8
-                              w-8
-                              shrink-0
-                              items-center
-                              justify-center
-                              bg-[#201E64]/10
-                            "
-                          >
-                            <UserRound
-                              className="h-4 w-4"
-                              style={{
-                                color: NAVY,
-                              }}
-                            />
-                          </div>
+    {error && <div role="alert" className="mt-4 border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-                          <div className="min-w-0">
-                            <p
-                              className="
-                                whitespace-nowrap
-                                text-xs
-                                font-bold
-                                text-neutral-800
-                              "
-                            >
-                              {
-                                supplier.firstName
-                              }{" "}
-                              {
-                                supplier.lastName
-                              }
-                            </p>
+    <div className="mt-4 text-sm font-semibold text-[#201E64]">Suppliers <span className="font-normal text-neutral-500">({filtered.length} results)</span></div>
 
-                            <p
-                              className="
-                                mt-0.5
-                                max-w-[180px]
-                                truncate
-                                text-[10px]
-                                text-neutral-400
-                              "
-                            >
-                              {supplier.email}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
+    {loading ? <div className="mt-3 border border-neutral-200 p-10 text-center text-sm text-neutral-500">Loading suppliers...</div> : <>
 
-                      {/* COMPANY */}
+      <div className="mt-3 hidden overflow-x-auto border border-neutral-200 bg-white md:block"><table className="w-full min-w-[850px] text-left text-xs"><thead className="bg-neutral-50 text-[11px] uppercase text-neutral-500"><tr>{["Supplier", "Company", "Locality", "B-BBEE", "Document Score", "Details"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody>{filtered.map((s) => <tr key={s.user_id} className="border-t border-neutral-100 hover:bg-neutral-50"><td className="px-4 py-3"><p className="font-bold text-neutral-800">{s.first_name} {s.last_name}</p><p className="text-neutral-500">{s.email}</p></td><td className="px-4 py-3">{s.business_name}</td><td className="px-4 py-3">{s.community || s.business_address || "Not provided"}</td><td className="px-4 py-3"><span className="bg-[#201E64]/10 px-2 py-1 font-bold text-[#201E64]">{formatBee(s.bee_level)}</span></td><td className="px-4 py-3"><DocumentScore supplier={s} onClick={() => openSupplier(s, "documents")} /></td><td className="px-4 py-3"><button type="button" onClick={() => openSupplier(s, "information")} className="font-bold text-[#201E64] hover:underline">View Details</button></td></tr>)}</tbody></table></div>
 
-                      <td
-                        className="
-                          px-4
-                          py-3
-                          text-xs
-                          text-neutral-600
-                        "
-                      >
-                        {supplier.company}
-                      </td>
+      <div className="mt-3 grid gap-3 md:hidden">{filtered.map((s) => <div key={s.user_id} className="border border-neutral-200 bg-white p-4"><p className="font-bold text-[#201E64]">{s.first_name} {s.last_name}</p><p className="mt-1 text-xs text-neutral-500">{s.business_name} · {formatBee(s.bee_level)}</p><div className="mt-3 flex items-center justify-between"><DocumentScore supplier={s} onClick={() => openSupplier(s, "documents")} /><button type="button" className="text-xs font-bold text-[#201E64]" onClick={() => openSupplier(s, "information")}>View Details</button></div></div>)}</div>
 
-                      {/* LOCALITY */}
+      {!filtered.length && <div className="mt-3 border border-neutral-200 p-8 text-center text-sm text-neutral-500">No registered suppliers found.</div>}
 
-                      <td
-                        className="
-                          px-4
-                          py-3
-                          text-xs
-                          text-neutral-500
-                        "
-                      >
-                        <div
-                          className="
-                            flex
-                            items-center
-                            gap-1.5
-                          "
-                        >
-                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+    </>}
 
-                          <span>
-                            {
-                              supplier.locality
-                            }
-                          </span>
-                        </div>
-                      </td>
+    <SupplierDetails supplier={selectedSupplier} initialTab={initialTab} onClose={() => setSelectedId(null)} onUpdated={onUpdated} />
 
-                      {/* BEE */}
+  </div>;
 
-                      <td className="px-4 py-3">
-                        <span
-                          className="
-                            inline-flex
-                            bg-[#201E64]/10
-                            px-2
-                            py-1
-                            text-[10px]
-                            font-bold
-                            text-[#201E64]
-                          "
-                        >
-                          {supplier.beeLevel}
-                        </span>
-                      </td>
-
-                      {/* VIEW */}
-
-                      <td
-                        className="
-                          px-4
-                          py-3
-                          text-right
-                        "
-                      >
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-
-                            setSelectedSupplier(
-                              supplier
-                            );
-                          }}
-                          className="
-                            inline-flex
-                            items-center
-                            gap-1
-                            text-xs
-                            font-semibold
-                            text-[#201E64]
-                            hover:underline
-                          "
-                        >
-                          View
-
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* ==================================================
-            MOBILE SUPPLIER CARDS
-        ================================================== */}
-
-        <div
-          className="
-            mt-3
-            grid
-            grid-cols-1
-            gap-3
-            md:hidden
-          "
-        >
-          {filteredSuppliers.map(
-            (supplier) => (
-              <SupplierCard
-                key={supplier.id}
-                supplier={supplier}
-                onClick={() =>
-                  setSelectedSupplier(
-                    supplier
-                  )
-                }
-              />
-            )
-          )}
-        </div>
-
-        {/* ==================================================
-            NO RESULTS
-        ================================================== */}
-
-        {filteredSuppliers.length ===
-          0 && (
-          <div
-            className="
-              mt-3
-              border
-              border-neutral-200
-              bg-white
-              px-4
-              py-10
-              text-center
-              shadow-sm
-            "
-          >
-            <div
-              className="
-                mx-auto
-                flex
-                h-10
-                w-10
-                items-center
-                justify-center
-                bg-neutral-100
-              "
-            >
-              <Search className="h-5 w-5 text-neutral-400" />
-            </div>
-
-            <h3
-              className="
-                mt-3
-                text-sm
-                font-bold
-                text-neutral-700
-              "
-            >
-              No suppliers found
-            </h3>
-
-            <p
-              className="
-                mt-1
-                text-xs
-                text-neutral-500
-              "
-            >
-              Try searching using a
-              different supplier or company
-              name.
-            </p>
-
-            <button
-              type="button"
-              onClick={() =>
-                setSearch("")
-              }
-              className="
-                mt-4
-                text-xs
-                font-semibold
-                text-[#201E64]
-                hover:underline
-              "
-            >
-              Clear search
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ==================================================
-          SUPPLIER DETAILS MODAL
-      ================================================== */}
-
-      <SupplierDetails
-        supplier={selectedSupplier}
-        onClose={() =>
-          setSelectedSupplier(null)
-        }
-      />
-    </>
-  );
 }

@@ -1,2336 +1,400 @@
-import React, { useMemo, useState } from "react";
-import {
-  Search,
-  Inbox,
-  UserRound,
-  Building2,
-  MapPin,
-  BriefcaseBusiness,
-  BadgeCheck,
-  Wallet,
-  Users,
-  CalendarDays,
-  MessageSquareText,
-  X,
-  ChevronRight,
-  Mail,
-  Phone,
-} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-const NAVY = "#201E64";
+import { Search, RefreshCw, ChevronRight, X, Inbox, FileText, AlertCircle } from "lucide-react";
 
-// ======================================================
-// DUMMY BUSINESS REQUEST DATA
-// Replace with API data later
-// ======================================================
+import api from "../../API/axiosInstance";
+import { useAuth } from "../../context/AuthContext";
 
-const BUSINESS_REQUESTS = [
-  {
-    id: 1,
+import { SupplierDetails } from "./SuppliersScreen";
 
-    subject: "Financial Management Support",
+const ADVISORY_ENDPOINT = "/advisory/requests";
 
-    description:
-      "We need assistance with improving our financial management processes, budgeting, cash flow planning and preparing financial statements.",
+const STATUS_ENDPOINT = (id) => `/advisory/requests/${id}/status`;
 
-    supportArea: "Financial Management",
+const STATUSES = ["PENDING", "IN REVIEW", "COMPLETED"];
 
-    requestDate: "05 Oct 2026",
+const display = (value) => value == null || value === "" ? "Not provided" : String(value);
 
-    preferredDate: "12 Oct 2026",
+const statusName = (value) => String(value || "PENDING").toUpperCase().replaceAll("_", " ");
 
-    status: "PENDING",
+const formatDate = (value) => {
 
-    supplier: {
-      id: 1,
+  if (!value) return "Not provided";
 
-      firstName: "Thabo",
+  const d = new Date(value);
 
-      lastName: "Mokoena",
+  return Number.isNaN(d.getTime()) ? display(value) : new Intl.DateTimeFormat("en-ZA", { day: "2-digit", month: "short", year: "numeric", timeZone: "Africa/Johannesburg" }).format(d);
 
-      email: "thabo@mokoena.co.za",
+};
 
-      phone: "071 234 5678",
+const formatBeeLevel = (value) => {
 
-      company: "Mokoena Agricultural Services",
+  const raw = String(value ?? "").trim();
 
-      beeLevel: "Level 1",
+  if (!raw) return "Not provided";
 
-      bwoOwnership: 100,
+  const match = raw.match(/^(?:level\s*)?([1-8])$/i);
 
-      boOwnership: 100,
+  return match ? `Level ${match[1]}` : raw;
 
-      serviceOffered:
-        "Agricultural services, crop maintenance and farm support",
+};
 
-      locality: "Johannesburg, Gauteng",
+const supplierName = (supplier = {}) => [supplier.title, supplier.first_name, supplier.last_name].filter(Boolean).join(" ") || "Unknown supplier";
 
-      annualRevenue: "R1,000,000 - R5,000,000",
+const provided = (status) => ["SUBMITTED", "REGISTERED", "PROVIDED"].includes(String(status || "").toUpperCase());
 
-      permanentEmployees: 12,
-    },
-  },
+const docStatuses = (supplier = {}) => ({
 
-  {
-    id: 2,
+  bee_document: supplier.document_status?.bee_document || (supplier.bee_document_submitted ? "SUBMITTED" : "NOT_SUBMITTED"),
 
-    subject: "Funding Assistance",
+  financial_statement: supplier.document_status?.financial_statement || (supplier.has_financial_statement ? "SUBMITTED" : "NOT_SUBMITTED"),
 
-    description:
-      "Our business is looking for funding to purchase additional vehicles and equipment so that we can expand our logistics operations.",
+  company_registration: supplier.document_status?.company_registration || (supplier.has_company_registration_document ? "SUBMITTED" : "NOT_SUBMITTED"),
 
-    supportArea: "Funding & Investment",
+  vat_registration: supplier.document_status?.vat_registration || (supplier.has_vat_registration ? "REGISTERED" : "NOT_REGISTERED"),
 
-    requestDate: "04 Oct 2026",
+  tax_compliance_pin: supplier.document_status?.tax_compliance_pin || (supplier.has_tax_compliance_pin ? "PROVIDED" : "NOT_PROVIDED"),
 
-    preferredDate: "15 Oct 2026",
+});
 
-    status: "IN REVIEW",
+// Match the scoring logic in SuppliersScreen: affidavits are visible, but worth zero points.
 
-    supplier: {
-      id: 2,
+const beeDocumentType = (supplier = {}) => {
 
-      firstName: "Lerato",
+  const explicit = String(supplier.bee_document_type || "").toUpperCase();
 
-      lastName: "Nkosi",
+  if (explicit.includes("AFFIDAVIT")) return "BEE_AFFIDAVIT";
 
-      email: "lerato@nkosilogistics.co.za",
+  if (explicit.includes("CERTIFICATE")) return "BEE_CERTIFICATE";
 
-      phone: "072 555 8214",
+  const docs = supplier.documents || [];
 
-      company: "Nkosi Logistics Solutions",
+  if (docs.some(d => String(d.document_type).toUpperCase() === "BEE_AFFIDAVIT")) return "BEE_AFFIDAVIT";
 
-      beeLevel: "Level 2",
+  if (docs.some(d => String(d.document_type).toUpperCase() === "BEE_CERTIFICATE")) return "BEE_CERTIFICATE";
 
-      bwoOwnership: 51,
+  return null;
 
-      boOwnership: 75,
+};
 
-      serviceOffered:
-        "Transportation, logistics and freight services",
+const score = (supplier = {}) => {
 
-      locality: "Durban, KwaZulu-Natal",
+  const statuses = docStatuses(supplier);
 
-      annualRevenue: "R5,000,000 - R10,000,000",
+  const otherKeys = ["financial_statement", "company_registration", "vat_registration", "tax_compliance_pin"];
 
-      permanentEmployees: 28,
-    },
-  },
+  const otherPoints = otherKeys.filter(key => provided(statuses[key])).length;
 
-  {
-    id: 3,
+  return otherPoints + (provided(statuses.bee_document) && beeDocumentType(supplier) === "BEE_CERTIFICATE" ? 1 : 0);
 
-    subject: "Business Strategy Guidance",
+};
 
-    description:
-      "We would like assistance developing a growth strategy and identifying new opportunities for expanding our business into additional markets.",
+const SCORE_FILTERS = [
 
-    supportArea: "Business Strategy",
+  { key: "ALL", label: "All Scores", match: () => true },
 
-    requestDate: "03 Oct 2026",
+  { key: "COMPLIANT", label: "Compliant", match: n => n === 5 },
 
-    preferredDate: "10 Oct 2026",
+  { key: "SEMI", label: "Semi-compliant", match: n => n >= 3 && n <= 4 },
 
-    status: "PENDING",
+  { key: "NON", label: "Non-compliant", match: n => n >= 1 && n <= 2 },
 
-    supplier: {
-      id: 3,
-
-      firstName: "Nomsa",
-
-      lastName: "Dlamini",
-
-      email: "nomsa@dlaminibusiness.co.za",
-
-      phone: "073 441 2209",
-
-      company: "Dlamini Business Solutions",
-
-      beeLevel: "Level 1",
-
-      bwoOwnership: 100,
-
-      boOwnership: 100,
-
-      serviceOffered:
-        "Business consulting and administrative services",
-
-      locality: "Pretoria, Gauteng",
-
-      annualRevenue: "R500,000 - R1,000,000",
-
-      permanentEmployees: 7,
-    },
-  },
-
-  {
-    id: 4,
-
-    subject: "Tender Readiness Support",
-
-    description:
-      "We need assistance understanding tender requirements and preparing the correct compliance documentation before submitting tender applications.",
-
-    supportArea: "Procurement & Tenders",
-
-    requestDate: "01 Oct 2026",
-
-    preferredDate: "09 Oct 2026",
-
-    status: "IN REVIEW",
-
-    supplier: {
-      id: 4,
-
-      firstName: "Sipho",
-
-      lastName: "Khumalo",
-
-      email: "sipho@khumaloengineering.co.za",
-
-      phone: "074 998 1132",
-
-      company: "Khumalo Engineering",
-
-      beeLevel: "Level 3",
-
-      bwoOwnership: 30,
-
-      boOwnership: 60,
-
-      serviceOffered:
-        "Engineering, maintenance and equipment repairs",
-
-      locality: "Richards Bay, KwaZulu-Natal",
-
-      annualRevenue: "R10,000,000 - R20,000,000",
-
-      permanentEmployees: 42,
-    },
-  },
-
-  {
-    id: 5,
-
-    subject: "Marketing Support",
-
-    description:
-      "We would like guidance on improving our marketing strategy, online presence and customer acquisition process.",
-
-    supportArea: "Marketing & Sales",
-
-    requestDate: "30 Sep 2026",
-
-    preferredDate: "08 Oct 2026",
-
-    status: "COMPLETED",
-
-    supplier: {
-      id: 5,
-
-      firstName: "Amanda",
-
-      lastName: "Ndlovu",
-
-      email: "amanda@ndlovucleaning.co.za",
-
-      phone: "076 334 8821",
-
-      company: "Ndlovu Cleaning Services",
-
-      beeLevel: "Level 1",
-
-      bwoOwnership: 100,
-
-      boOwnership: 100,
-
-      serviceOffered:
-        "Commercial cleaning and facilities management",
-
-      locality: "Johannesburg, Gauteng",
-
-      annualRevenue: "R1,000,000 - R5,000,000",
-
-      permanentEmployees: 34,
-    },
-  },
-
-  {
-    id: 6,
-
-    subject: "Business Expansion Support",
-
-    description:
-      "We need advice on expanding our ICT services and identifying opportunities to provide technology services to larger organisations.",
-
-    supportArea: "Growth & Expansion",
-
-    requestDate: "28 Sep 2026",
-
-    preferredDate: "07 Oct 2026",
-
-    status: "COMPLETED",
-
-    supplier: {
-      id: 6,
-
-      firstName: "Mpho",
-
-      lastName: "Mahlangu",
-
-      email: "mpho@mahlanguict.co.za",
-
-      phone: "078 229 4110",
-
-      company: "Mahlangu ICT Solutions",
-
-      beeLevel: "Level 2",
-
-      bwoOwnership: 40,
-
-      boOwnership: 80,
-
-      serviceOffered:
-        "ICT support, software development and cloud services",
-
-      locality: "Midrand, Gauteng",
-
-      annualRevenue: "R5,000,000 - R10,000,000",
-
-      permanentEmployees: 18,
-    },
-  },
 ];
 
-// ======================================================
-// STATUS BADGE
-// ======================================================
-
 function StatusBadge({ status }) {
-  let classes =
-    "border-neutral-200 bg-neutral-50 text-neutral-600";
 
-  if (status === "PENDING") {
-    classes =
-      "border-amber-200 bg-amber-50 text-amber-700";
-  }
+  const s = statusName(status);
 
-  if (status === "IN REVIEW") {
-    classes =
-      "border-blue-200 bg-blue-50 text-blue-700";
-  }
+  const cls = s === "COMPLETED" ? "bg-green-50 text-green-700" : s === "IN REVIEW" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700";
 
-  if (status === "COMPLETED") {
-    classes =
-      "border-green-200 bg-green-50 text-green-700";
-  }
+  return <span className={`inline-flex whitespace-nowrap px-2.5 py-1 text-[11px] font-bold ${cls}`}>{s}</span>;
 
-  return (
-    <span
-      className={`
-        inline-flex
-        whitespace-nowrap
-        border
-        px-2
-        py-1
-        text-[9px]
-        font-bold
-        uppercase
-        tracking-wide
-        ${classes}
-      `}
-    >
-      {status}
-    </span>
-  );
 }
 
-// ======================================================
-// DETAIL ITEM
-// ======================================================
+function RequestDetails({ request, onClose, onOpenSupplier, onStatusUpdate, saving, updateError, supplierModalOpen }) {
 
-function DetailItem({
-  icon: Icon,
-  label,
-  value,
-}) {
-  return (
-    <div
-      className="
-        flex
-        items-start
-        gap-3
-        border
-        border-neutral-200
-        bg-neutral-50
-        p-3
-      "
-    >
-      <div
-        className="
-          flex
-          h-8
-          w-8
-          shrink-0
-          items-center
-          justify-center
-          bg-[#201E64]/10
-        "
-      >
-        <Icon
-          className="h-4 w-4"
-          style={{ color: NAVY }}
-        />
-      </div>
+  const [draft, setDraft] = useState("PENDING");
 
-      <div className="min-w-0">
-        <p
-          className="
-            text-[10px]
-            font-bold
-            uppercase
-            tracking-wide
-            text-neutral-400
-          "
-        >
-          {label}
-        </p>
+  useEffect(() => setDraft(statusName(request?.status)), [request?.advisory_request_id, request?.status]);
 
-        <p
-          className="
-            mt-1
-            break-words
-            text-xs
-            font-semibold
-            leading-5
-            text-neutral-800
-            sm:text-sm
-          "
-        >
-          {value ?? "Not provided"}
-        </p>
-      </div>
-    </div>
-  );
-}
+  useEffect(() => {
 
-// ======================================================
-// BUSINESS REQUEST DETAILS MODAL
-// ======================================================
+    if (!request) return;
 
-function BusinessRequestDetails({
-  request,
-  onClose,
-  onStatusUpdate,
-}) {
-  if (!request) {
-    return null;
-  }
+    const keydown = (e) => { if (e.key === "Escape" && !supplierModalOpen) onClose(); };
 
-  const supplier = request.supplier;
+    window.addEventListener("keydown", keydown);
 
-  const fullName =
-    `${supplier.firstName} ${supplier.lastName}`;
+    return () => window.removeEventListener("keydown", keydown);
 
-  return (
-    <div
-      className="
-        fixed
-        inset-0
-        z-[100]
-        flex
-        items-end
-        justify-center
-        bg-black/40
-        sm:items-center
-        sm:p-5
-      "
-      onClick={onClose}
-    >
-      <div
-        className="
-          flex
-          max-h-[92dvh]
-          w-full
-          flex-col
-          overflow-hidden
-          bg-white
-          shadow-xl
-          sm:max-w-4xl
-        "
-        onClick={(event) =>
-          event.stopPropagation()
-        }
-      >
-        {/* ==================================================
-            MODAL HEADER
-        ================================================== */}
+  }, [request, onClose, supplierModalOpen]);
 
-        <div
-          className="
-            flex
-            shrink-0
-            items-start
-            justify-between
-            gap-4
-            border-b
-            border-neutral-200
-            px-4
-            py-4
-            sm:px-5
-          "
-        >
-          <div className="min-w-0">
-            <div
-              className="
-                flex
-                flex-wrap
-                items-center
-                gap-2
-              "
-            >
-              <h2
-                className="
-                  text-lg
-                  font-bold
-                  sm:text-xl
-                "
-                style={{ color: NAVY }}
-              >
-                Business Advisory Request
-              </h2>
+  if (!request) return null;
 
-              <StatusBadge
-                status={request.status}
-              />
-            </div>
+  const supplier = request.supplier || {};
 
-            <p
-              className="
-                mt-1
-                text-xs
-                text-neutral-500
-              "
-            >
-              Request #{request.id}
-            </p>
+  return <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 sm:items-center sm:p-5" onMouseDown={e => { if (e.target === e.currentTarget && !supplierModalOpen) onClose(); }}>
+
+    <div role="dialog" aria-modal="true" aria-label="Advisory request details" className="flex max-h-[95dvh] w-full flex-col overflow-hidden bg-white shadow-xl sm:max-h-[90dvh] sm:max-w-3xl">
+
+      <header className="flex items-start justify-between gap-3 border-b border-neutral-200 p-4 sm:p-5">
+
+        <div><h2 className="text-lg font-bold text-[#201E64]">Business Advisory Request #{request.advisory_request_id}</h2><p className="mt-1 text-sm text-neutral-500">{display(request.subject)}</p></div>
+
+        <button type="button" aria-label="Close" onClick={onClose} className="p-2 hover:bg-neutral-100"><X size={20} /></button>
+
+      </header>
+
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
+
+        <section className="space-y-3">
+
+          <div className="flex flex-wrap items-center gap-3"><h3 className="text-sm font-bold text-[#201E64]">Request Information</h3><StatusBadge status={request.status}/></div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+
+            {[["Subject", request.subject], ["Request Date", formatDate(request.request_date)], ["Preferred Date", formatDate(request.preferred_date)], ["Assigned To (User ID)", request.assigned_to]].map(([label, value]) =>
+
+              <div key={label} className="border border-neutral-200 bg-neutral-50 p-3"><p className="text-[11px] font-bold uppercase text-neutral-400">{label}</p><p className="mt-1 break-words text-sm font-semibold">{display(value)}</p></div>)}
+
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close request details"
-            className="
-              flex
-              h-9
-              w-9
-              shrink-0
-              items-center
-              justify-center
-              text-neutral-500
-              transition
-              hover:bg-neutral-100
-              hover:text-neutral-900
-            "
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+          <div className="border border-neutral-200 bg-neutral-50 p-4"><p className="text-[11px] font-bold uppercase text-neutral-400">Description</p><p className="mt-2 whitespace-pre-wrap break-words text-sm">{display(request.description)}</p></div>
 
-        {/* ==================================================
-            SCROLLABLE CONTENT
-        ================================================== */}
+        </section>
 
-        <div
-          className="
-            flex-1
-            overflow-y-auto
-            p-4
-            sm:p-5
-          "
-        >
-          {/* ==================================================
-              REQUEST INFORMATION
-          ================================================== */}
+        <section className="space-y-3">
 
-          <section>
-            <div
-              className="
-                flex
-                items-center
-                gap-2
-              "
-            >
-              <MessageSquareText
-                className="h-4 w-4"
-                style={{ color: NAVY }}
-              />
+          <h3 className="text-sm font-bold text-[#201E64]">Update Advisory Request Status</h3>
 
-              <h3
-                className="text-sm font-bold"
-                style={{ color: NAVY }}
-              >
-                Request Information
-              </h3>
+          <div className="flex flex-wrap items-end gap-3 border border-neutral-200 p-4">
+
+            <label className="flex min-w-[170px] flex-1 flex-col gap-1 text-xs font-semibold">Status
+
+              <select value={draft} onChange={e => setDraft(e.target.value)} disabled={saving} className="h-10 border border-neutral-300 bg-white px-3 text-sm">
+
+                {!STATUSES.includes(draft) && <option value={draft}>{draft}</option>}
+
+                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+
+              </select>
+
+            </label>
+
+            <button type="button" disabled={saving || draft === statusName(request.status)} onClick={() => onStatusUpdate(request.advisory_request_id, draft)} className="h-10 bg-[#201E64] px-4 text-xs font-bold text-white disabled:opacity-50">{saving ? "Saving..." : "Save Status"}</button>
+
+          </div>
+
+          {updateError && <p role="alert" className="text-xs text-red-700">{updateError}</p>}
+
+        </section>
+
+        <section className="space-y-3">
+
+          <h3 className="text-sm font-bold text-[#201E64]">Supplier Who Applied</h3>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 border border-neutral-200 p-4">
+
+            <div><p className="font-bold text-[#201E64]">{supplierName(supplier)}</p><p className="mt-1 text-xs text-neutral-500">{display(supplier.business_name)}</p><p className="mt-2 text-xs font-semibold text-[#201E64]">B-BBEE: {formatBeeLevel(supplier.bee_level)}</p><p className="mt-2 text-xs text-neutral-500">Document Score: <strong className="text-[#201E64]">{score(supplier)}/5</strong></p></div>
+
+            <div className="flex flex-wrap gap-2">
+
+              <button type="button" onClick={() => onOpenSupplier("documents")} className="inline-flex items-center gap-1 border border-neutral-300 px-3 py-2 text-xs font-bold text-[#201E64]"><FileText size={15}/>{score(supplier)}/5 Documents</button>
+
+              <button type="button" onClick={() => onOpenSupplier("information")} className="inline-flex items-center gap-1 bg-[#201E64] px-3 py-2 text-xs font-bold text-white">View Supplier Details <ChevronRight size={15}/></button>
+
             </div>
 
-            <div
-              className="
-                mt-3
-                border
-                border-neutral-200
-                bg-neutral-50
-                p-4
-              "
-            >
-              <div
-                className="
-                  grid
-                  grid-cols-1
-                  gap-4
-                  sm:grid-cols-2
-                "
-              >
-                {/* SUBJECT */}
+          </div>
 
-                <div>
-                  <p
-                    className="
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Subject
-                  </p>
+          <p className="text-xs text-neutral-500">View Supplier Details opens the exact same supplier information and document tabs as your Suppliers screen, including tax compliance controls.</p>
 
-                  <p
-                    className="
-                      mt-1
-                      text-sm
-                      font-bold
-                      text-neutral-800
-                    "
-                  >
-                    {request.subject}
-                  </p>
-                </div>
+        </section>
 
-                {/* SUPPORT AREA */}
-
-                <div>
-                  <p
-                    className="
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Support Area
-                  </p>
-
-                  <p
-                    className="
-                      mt-1
-                      text-sm
-                      font-semibold
-                      text-neutral-800
-                    "
-                  >
-                    {request.supportArea}
-                  </p>
-                </div>
-
-                {/* REQUEST DATE */}
-
-                <div>
-                  <p
-                    className="
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Request Date
-                  </p>
-
-                  <p
-                    className="
-                      mt-1
-                      text-xs
-                      font-semibold
-                      text-neutral-700
-                    "
-                  >
-                    {request.requestDate}
-                  </p>
-                </div>
-
-                {/* PREFERRED DATE */}
-
-                <div>
-                  <p
-                    className="
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Preferred Date
-                  </p>
-
-                  <p
-                    className="
-                      mt-1
-                      text-xs
-                      font-semibold
-                      text-neutral-700
-                    "
-                  >
-                    {request.preferredDate}
-                  </p>
-                </div>
-              </div>
-
-              {/* DESCRIPTION */}
-
-              <div
-                className="
-                  mt-4
-                  border-t
-                  border-neutral-200
-                  pt-4
-                "
-              >
-                <p
-                  className="
-                    text-[10px]
-                    font-bold
-                    uppercase
-                    tracking-wide
-                    text-neutral-400
-                  "
-                >
-                  Description
-                </p>
-
-                <p
-                  className="
-                    mt-2
-                    text-xs
-                    leading-5
-                    text-neutral-600
-                    sm:text-sm
-                    sm:leading-6
-                  "
-                >
-                  {request.description}
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* ==================================================
-              UPDATE STATUS
-          ================================================== */}
-
-          <section className="mt-6">
-            <div
-              className="
-                flex
-                items-center
-                gap-2
-              "
-            >
-              <BadgeCheck
-                className="h-4 w-4"
-                style={{ color: NAVY }}
-              />
-
-              <h3
-                className="text-sm font-bold"
-                style={{ color: NAVY }}
-              >
-                Update Request Status
-              </h3>
-            </div>
-
-            <div
-              className="
-                mt-3
-                border
-                border-neutral-200
-                bg-white
-                p-4
-              "
-            >
-              <div
-                className="
-                  flex
-                  flex-col
-                  gap-4
-                  sm:flex-row
-                  sm:items-end
-                  sm:justify-between
-                "
-              >
-                {/* STATUS SELECT */}
-
-                <div
-                  className="
-                    w-full
-                    sm:max-w-xs
-                  "
-                >
-                  <label
-                    htmlFor={`status-${request.id}`}
-                    className="
-                      mb-1.5
-                      block
-                      text-xs
-                      font-semibold
-                      text-neutral-700
-                    "
-                  >
-                    Request Status
-                  </label>
-
-                  <select
-                    id={`status-${request.id}`}
-                    value={request.status}
-                    onChange={(event) =>
-                      onStatusUpdate(
-                        request.id,
-                        event.target.value
-                      )
-                    }
-                    className="
-                      h-10
-                      w-full
-                      border
-                      border-neutral-300
-                      bg-white
-                      px-3
-                      text-xs
-                      font-medium
-                      text-neutral-700
-                      outline-none
-                      transition
-                      focus:border-[#201E64]
-                      focus:ring-1
-                      focus:ring-[#201E64]/10
-                    "
-                  >
-                    <option value="PENDING">
-                      Pending
-                    </option>
-
-                    <option value="IN REVIEW">
-                      In Review
-                    </option>
-
-                    <option value="COMPLETED">
-                      Completed
-                    </option>
-                  </select>
-                </div>
-
-                {/* CURRENT STATUS */}
-
-                <div>
-                  <p
-                    className="
-                      mb-1.5
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Current Status
-                  </p>
-
-                  <StatusBadge
-                    status={request.status}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ==================================================
-              SUPPLIER INFORMATION
-          ================================================== */}
-
-          <section className="mt-6">
-            <div
-              className="
-                flex
-                items-center
-                gap-2
-              "
-            >
-              <UserRound
-                className="h-4 w-4"
-                style={{ color: NAVY }}
-              />
-
-              <h3
-                className="text-sm font-bold"
-                style={{ color: NAVY }}
-              >
-                Supplier Information
-              </h3>
-            </div>
-
-            <div
-              className="
-                mt-3
-                border
-                border-neutral-200
-                bg-white
-                p-4
-              "
-            >
-              <div
-                className="
-                  flex
-                  flex-col
-                  gap-4
-                  sm:flex-row
-                  sm:items-center
-                "
-              >
-                <div
-                  className="
-                    flex
-                    h-11
-                    w-11
-                    shrink-0
-                    items-center
-                    justify-center
-                    bg-[#201E64]/10
-                  "
-                >
-                  <UserRound
-                    className="h-5 w-5"
-                    style={{ color: NAVY }}
-                  />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <p
-                    className="
-                      text-base
-                      font-bold
-                    "
-                    style={{ color: NAVY }}
-                  >
-                    {fullName}
-                  </p>
-
-                  <p
-                    className="
-                      mt-0.5
-                      text-xs
-                      text-neutral-500
-                    "
-                  >
-                    {supplier.company}
-                  </p>
-                </div>
-              </div>
-
-              {/* CONTACT INFORMATION */}
-
-              <div
-                className="
-                  mt-4
-                  grid
-                  grid-cols-1
-                  gap-3
-                  sm:grid-cols-2
-                "
-              >
-                {/* EMAIL */}
-
-                <div
-                  className="
-                    flex
-                    items-center
-                    gap-2
-                    border-t
-                    border-neutral-100
-                    pt-3
-                  "
-                >
-                  <Mail
-                    className="
-                      h-4
-                      w-4
-                      shrink-0
-                      text-neutral-400
-                    "
-                  />
-
-                  <div className="min-w-0">
-                    <p
-                      className="
-                        text-[10px]
-                        font-bold
-                        uppercase
-                        text-neutral-400
-                      "
-                    >
-                      Email
-                    </p>
-
-                    <p
-                      className="
-                        mt-0.5
-                        break-all
-                        text-xs
-                        text-neutral-700
-                      "
-                    >
-                      {supplier.email}
-                    </p>
-                  </div>
-                </div>
-
-                {/* PHONE */}
-
-                <div
-                  className="
-                    flex
-                    items-center
-                    gap-2
-                    border-t
-                    border-neutral-100
-                    pt-3
-                  "
-                >
-                  <Phone
-                    className="
-                      h-4
-                      w-4
-                      shrink-0
-                      text-neutral-400
-                    "
-                  />
-
-                  <div>
-                    <p
-                      className="
-                        text-[10px]
-                        font-bold
-                        uppercase
-                        text-neutral-400
-                      "
-                    >
-                      Phone Number
-                    </p>
-
-                    <p
-                      className="
-                        mt-0.5
-                        text-xs
-                        text-neutral-700
-                      "
-                    >
-                      {supplier.phone}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* ==================================================
-              BUSINESS INFORMATION
-          ================================================== */}
-
-          <section className="mt-6">
-            <div
-              className="
-                flex
-                items-center
-                gap-2
-              "
-            >
-              <Building2
-                className="h-4 w-4"
-                style={{ color: NAVY }}
-              />
-
-              <h3
-                className="text-sm font-bold"
-                style={{ color: NAVY }}
-              >
-                Business Information
-              </h3>
-            </div>
-
-            <div
-              className="
-                mt-3
-                grid
-                grid-cols-1
-                gap-3
-                sm:grid-cols-2
-              "
-            >
-              {/* COMPANY */}
-
-              <DetailItem
-                icon={Building2}
-                label="Company"
-                value={supplier.company}
-              />
-
-              {/* BEE */}
-
-              <DetailItem
-                icon={BadgeCheck}
-                label="B-BBEE Level"
-                value={supplier.beeLevel}
-              />
-
-              {/* BWO */}
-
-              <DetailItem
-                icon={UserRound}
-                label="BWO Ownership"
-                value={`${supplier.bwoOwnership}%`}
-              />
-
-              {/* BO */}
-
-              <DetailItem
-                icon={Users}
-                label="BO Ownership"
-                value={`${supplier.boOwnership}%`}
-              />
-
-              {/* SERVICE */}
-
-              <DetailItem
-                icon={BriefcaseBusiness}
-                label="Service Offered"
-                value={
-                  supplier.serviceOffered
-                }
-              />
-
-              {/* LOCALITY */}
-
-              <DetailItem
-                icon={MapPin}
-                label="Locality"
-                value={supplier.locality}
-              />
-
-              {/* REVENUE */}
-
-              <DetailItem
-                icon={Wallet}
-                label="Annual Revenue"
-                value={
-                  supplier.annualRevenue
-                }
-              />
-
-              {/* EMPLOYEES */}
-
-              <DetailItem
-                icon={Users}
-                label="Permanent Employees"
-                value={
-                  supplier.permanentEmployees
-                }
-              />
-            </div>
-          </section>
-        </div>
-
-        {/* ==================================================
-            MODAL FOOTER
-        ================================================== */}
-
-        <div
-          className="
-            flex
-            shrink-0
-            justify-end
-            border-t
-            border-neutral-200
-            p-4
-          "
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            className="
-              w-full
-              bg-[#201E64]
-              px-5
-              py-2.5
-              text-xs
-              font-bold
-              text-white
-              transition
-              hover:bg-[#2B2889]
-              sm:w-auto
-            "
-          >
-            Close
-          </button>
-        </div>
       </div>
+
+      <footer className="flex justify-end border-t border-neutral-200 p-4"><button onClick={onClose} className="bg-[#201E64] px-5 py-2 text-xs font-bold text-white">Close</button></footer>
+
     </div>
-  );
+
+  </div>;
+
 }
-
-// ======================================================
-// MOBILE REQUEST CARD
-// ======================================================
-
-function RequestCard({
-  request,
-  onClick,
-}) {
-  const supplier = request.supplier;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="
-        w-full
-        border
-        border-neutral-200
-        bg-white
-        p-4
-        text-left
-        shadow-sm
-        transition
-        hover:border-[#201E64]/40
-        focus:outline-none
-        focus-visible:ring-2
-        focus-visible:ring-[#201E64]
-      "
-    >
-      <div
-        className="
-          flex
-          items-start
-          justify-between
-          gap-3
-        "
-      >
-        <div className="min-w-0">
-          <p
-            className="
-              text-sm
-              font-bold
-              leading-5
-            "
-            style={{ color: NAVY }}
-          >
-            {request.subject}
-          </p>
-
-          <p
-            className="
-              mt-1
-              truncate
-              text-xs
-              text-neutral-500
-            "
-          >
-            {supplier.company}
-          </p>
-        </div>
-
-        <StatusBadge
-          status={request.status}
-        />
-      </div>
-
-      <div
-        className="
-          mt-3
-          border-t
-          border-neutral-100
-          pt-3
-        "
-      >
-        {/* SUPPLIER */}
-
-        <div
-          className="
-            flex
-            items-center
-            gap-2
-            text-[11px]
-            text-neutral-500
-          "
-        >
-          <UserRound className="h-3.5 w-3.5 shrink-0" />
-
-          <span className="truncate">
-            {supplier.firstName}{" "}
-            {supplier.lastName}
-          </span>
-        </div>
-
-        {/* SUPPORT AREA */}
-
-        <div
-          className="
-            mt-2
-            flex
-            items-center
-            gap-2
-            text-[11px]
-            text-neutral-500
-          "
-        >
-          <BriefcaseBusiness className="h-3.5 w-3.5 shrink-0" />
-
-          <span className="truncate">
-            {request.supportArea}
-          </span>
-        </div>
-
-        {/* DATE */}
-
-        <div
-          className="
-            mt-2
-            flex
-            items-center
-            gap-2
-            text-[11px]
-            text-neutral-500
-          "
-        >
-          <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-
-          <span>
-            {request.requestDate}
-          </span>
-        </div>
-      </div>
-
-      <div
-        className="
-          mt-3
-          flex
-          items-center
-          justify-end
-          gap-1
-          text-xs
-          font-semibold
-          text-[#201E64]
-        "
-      >
-        View request
-
-        <ChevronRight className="h-3.5 w-3.5" />
-      </div>
-    </button>
-  );
-}
-
-// ======================================================
-// BUSINESS REQUESTS SCREEN
-// ======================================================
 
 export default function BusinessRequestsScreen() {
-  // ======================================================
-  // STATE
-  // ======================================================
+  const { loading: authLoading, isAuthenticated } = useAuth();
 
-  const [requests, setRequests] =
-    useState(BUSINESS_REQUESTS);
+  const [requests, setRequests] = useState([]);
 
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
 
-  const [statusFilter, setStatusFilter] =
-    useState("ALL");
+  const [filter, setFilter] = useState("ALL");
 
-  const [
-    selectedRequest,
-    setSelectedRequest,
-  ] = useState(null);
+  const [scoreFilter, setScoreFilter] = useState("ALL");
 
-  // ======================================================
-  // FILTER REQUESTS
-  // ======================================================
+  const [page, setPage] = useState(1);
 
-  const filteredRequests = useMemo(() => {
-    const query = search
-      .trim()
-      .toLowerCase();
+  const PAGE_SIZE = 10;
 
-    return requests.filter(
-      (request) => {
-        const supplier =
-          request.supplier;
+  const [selectedId, setSelectedId] = useState(null);
 
-        const fullName =
-          `${supplier.firstName} ${supplier.lastName}`.toLowerCase();
+  const [supplierTab, setSupplierTab] = useState(null);
 
-        const matchesSearch =
-          !query ||
-          fullName.includes(query) ||
-          supplier.company
-            .toLowerCase()
-            .includes(query) ||
-          request.subject
-            .toLowerCase()
-            .includes(query) ||
-          request.supportArea
-            .toLowerCase()
-            .includes(query) ||
-          supplier.locality
-            .toLowerCase()
-            .includes(query);
+  const [loading, setLoading] = useState(true);
 
-        const matchesStatus =
-          statusFilter === "ALL" ||
-          request.status ===
-            statusFilter;
+  const [error, setError] = useState("");
 
-        return (
-          matchesSearch &&
-          matchesStatus
-        );
-      }
-    );
-  }, [
-    requests,
-    search,
-    statusFilter,
-  ]);
+  const [saving, setSaving] = useState(false);
 
-  // ======================================================
-  // REQUEST COUNTS
-  // ======================================================
+  const [updateError, setUpdateError] = useState("");
 
-  const pendingCount =
-    requests.filter(
-      (request) =>
-        request.status === "PENDING"
-    ).length;
+  const fetchRequests = useCallback(async () => {
 
-  const reviewCount =
-    requests.filter(
-      (request) =>
-        request.status === "IN REVIEW"
-    ).length;
+    try {
 
-  const completedCount =
-    requests.filter(
-      (request) =>
-        request.status === "COMPLETED"
-    ).length;
+      setLoading(true); setError("");
 
-  // ======================================================
-  // UPDATE REQUEST STATUS
-  // ======================================================
+      const response = await api.get(ADVISORY_ENDPOINT);
 
-  const handleStatusUpdate = (
-    requestId,
-    newStatus
-  ) => {
-    // Update main request list
+      if (!response.data?.success || !Array.isArray(response.data.requests)) throw new Error("Unexpected advisory API response");
 
-    setRequests(
-      (currentRequests) =>
-        currentRequests.map(
-          (request) =>
-            request.id === requestId
-              ? {
-                  ...request,
-                  status: newStatus,
-                }
-              : request
-        )
-    );
+      setRequests(response.data.requests.map(r => ({ ...r, status: statusName(r.status), supplier: r.supplier || {} })));
 
-    // Update selected request modal immediately
+    } catch (err) { setError(err.response?.data?.message || err.message || "Failed to load requests"); }
 
-    setSelectedRequest(
-      (currentRequest) => {
-        if (
-          !currentRequest ||
-          currentRequest.id !==
-            requestId
-        ) {
-          return currentRequest;
-        }
+    finally { setLoading(false); }
 
-        return {
-          ...currentRequest,
-          status: newStatus,
-        };
-      }
-    );
+  }, []);
 
-    console.log(
-      `Request ${requestId} status changed to ${newStatus}`
-    );
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      setLoading(false);
+      setRequests([]);
+      setError("Please log in to view business advisory requests.");
+      return;
+    }
+    fetchRequests();
+  }, [authLoading, isAuthenticated, fetchRequests]);
 
-    // ==================================================
-    // API WILL BE CONNECTED HERE LATER
-    // ==================================================
-    //
-    // Example:
-    //
-    // try {
-    //   await axios.patch(
-    //     `http://localhost:5000/api/advisory/${requestId}/status`,
-    //     {
-    //       status: newStatus,
-    //     }
-    //   );
-    // } catch (error) {
-    //   console.error(
-    //     "Failed to update request status:",
-    //     error
-    //   );
-    // }
+  const selected = requests.find(r => r.advisory_request_id === selectedId) || null;
+
+  const filtered = useMemo(() => requests.filter(r => {
+
+    const s = r.supplier || {};
+
+    const text = [r.subject, r.description, s.first_name, s.last_name, s.business_name, s.bee_level, formatBeeLevel(s.bee_level), s.community, s.industry].join(" ").toLowerCase();
+
+    return (filter === "ALL" || r.status === filter) && SCORE_FILTERS.find(f => f.key === scoreFilter).match(score(s)) && text.includes(search.trim().toLowerCase());
+
+  }), [requests, filter, scoreFilter, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+
+  const currentPage = Math.min(page, totalPages);
+
+  const paginated = useMemo(() => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE), [filtered, currentPage]);
+
+  useEffect(() => { setPage(1); }, [search, filter, scoreFilter]);
+
+  const count = status => requests.filter(r => r.status === status).length;
+
+  const updateStatus = async (id, status) => {
+    if (authLoading || !isAuthenticated) {
+      setUpdateError("Please log in before updating a request.");
+      return;
+    }
+
+    try {
+
+      setSaving(true); setUpdateError("");
+
+      await api.patch(STATUS_ENDPOINT(id), { status });
+
+      setRequests(current => current.map(r => r.advisory_request_id === id ? { ...r, status } : r));
+
+    } catch (err) { setUpdateError(err.response?.data?.message || "Unable to save status. Check that the PATCH endpoint exists and is authorized."); }
+
+    finally { setSaving(false); }
+
   };
 
-  return (
-    <>
-      <div className="w-full">
-        {/* ==================================================
-            HEADER
-        ================================================== */}
+  const updateTax = (businessId, status) => setRequests(current => current.map(r => r.supplier?.business_id === businessId ? { ...r, supplier: { ...r.supplier, tax_compliance_status: status } } : r));
 
-        <div
-          className="
-            mb-5
-            flex
-            flex-col
-            gap-4
-            lg:flex-row
-            lg:items-end
-            lg:justify-between
-          "
-        >
-          <div>
-            <h1
-              className="
-                text-2xl
-                font-extrabold
-                tracking-tight
-                sm:text-3xl
-              "
-              style={{ color: NAVY }}
-            >
-              Business Requests
-            </h1>
+  const open = id => { setSelectedId(id); setSupplierTab(null); setUpdateError(""); };
 
-            <p
-              className="
-                mt-1
-                max-w-2xl
-                text-xs
-                leading-5
-                text-neutral-500
-                sm:text-sm
-              "
-            >
-              View, manage and update
-              business advisory requests
-              submitted by registered
-              suppliers.
-            </p>
-          </div>
+  const close = () => { setSelectedId(null); setSupplierTab(null); };
 
-          {/* TOTAL REQUESTS */}
+  return <div className="w-full min-w-0">
 
-          <div
-            className="
-              flex
-              w-fit
-              items-center
-              gap-2
-              bg-[#201E64]/10
-              px-3
-              py-2
-            "
-          >
-            <Inbox
-              className="h-4 w-4"
-              style={{ color: NAVY }}
-            />
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-2xl font-extrabold text-[#201E64] sm:text-3xl">Business Requests</h1><p className="mt-1 text-sm text-neutral-500">Business advisory requests from registered suppliers.</p></div><button onClick={fetchRequests} disabled={loading || authLoading || !isAuthenticated} className="inline-flex items-center gap-2 border border-neutral-200 px-3 py-2 text-xs font-bold text-[#201E64]"><RefreshCw size={15} className={loading ? "animate-spin" : ""}/> Refresh</button></div>
 
-            <span
-              className="
-                text-xs
-                font-bold
-              "
-              style={{ color: NAVY }}
-            >
-              {requests.length} Requests
-            </span>
-          </div>
-        </div>
+    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">{[["Pending", count("PENDING")], ["In Review", count("IN REVIEW")], ["Completed", count("COMPLETED")]].map(([label, value]) => <div key={label} className="border border-neutral-200 bg-white p-4"><p className="text-xs text-neutral-500">{label}</p><p className="mt-1 text-2xl font-bold text-[#201E64]">{value}</p></div>)}</div>
 
-        {/* ==================================================
-            STATUS COUNTS
-        ================================================== */}
+    <div className="flex flex-col gap-3 border border-neutral-200 p-4 sm:flex-row"><label className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16}/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search subject, supplier or B-BBEE level..." className="h-10 w-full border border-neutral-300 pl-9 pr-3 text-sm"/></label><select value={filter} onChange={e => setFilter(e.target.value)} className="h-10 border border-neutral-300 px-3 text-sm"><option value="ALL">All statuses</option>{STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
 
-        <div
-          className="
-            grid
-            grid-cols-1
-            gap-3
-            min-[420px]:grid-cols-3
-          "
-        >
-          {/* PENDING */}
+    {/* Filter by document submission score (not official compliance). */}
 
-          <button
-            type="button"
-            onClick={() =>
-              setStatusFilter("PENDING")
-            }
-            className="
-              border
-              border-neutral-200
-              bg-white
-              p-3
-              text-left
-              shadow-sm
-              transition
-              hover:border-amber-300
-            "
-          >
-            <p
-              className="
-                text-[10px]
-                font-bold
-                uppercase
-                tracking-wide
-                text-neutral-400
-              "
-            >
-              Pending
-            </p>
+    <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Filter requests by document score">
 
-            <p
-              className="
-                mt-1
-                text-xl
-                font-extrabold
-                text-amber-600
-              "
-            >
-              {pendingCount}
-            </p>
-          </button>
+      {SCORE_FILTERS.map(option => (
 
-          {/* IN REVIEW */}
+        <button key={option.key} type="button" onClick={() => setScoreFilter(option.key)} aria-pressed={scoreFilter === option.key}
 
-          <button
-            type="button"
-            onClick={() =>
-              setStatusFilter(
-                "IN REVIEW"
-              )
-            }
-            className="
-              border
-              border-neutral-200
-              bg-white
-              p-3
-              text-left
-              shadow-sm
-              transition
-              hover:border-blue-300
-            "
-          >
-            <p
-              className="
-                text-[10px]
-                font-bold
-                uppercase
-                tracking-wide
-                text-neutral-400
-              "
-            >
-              In Review
-            </p>
+          className={`border px-3 py-2 text-xs font-semibold transition ${scoreFilter === option.key ? "border-[#201E64] bg-[#201E64] text-white" : "border-neutral-200 bg-white text-neutral-600 hover:border-[#201E64]"}`}>
 
-            <p
-              className="
-                mt-1
-                text-xl
-                font-extrabold
-                text-blue-600
-              "
-            >
-              {reviewCount}
-            </p>
-          </button>
+          {option.label}
 
-          {/* COMPLETED */}
+        </button>
 
-          <button
-            type="button"
-            onClick={() =>
-              setStatusFilter(
-                "COMPLETED"
-              )
-            }
-            className="
-              border
-              border-neutral-200
-              bg-white
-              p-3
-              text-left
-              shadow-sm
-              transition
-              hover:border-green-300
-            "
-          >
-            <p
-              className="
-                text-[10px]
-                font-bold
-                uppercase
-                tracking-wide
-                text-neutral-400
-              "
-            >
-              Completed
-            </p>
+      ))}
 
-            <p
-              className="
-                mt-1
-                text-xl
-                font-extrabold
-                text-green-600
-              "
-            >
-              {completedCount}
-            </p>
-          </button>
-        </div>
+    </div>
 
-        {/* ==================================================
-            SEARCH + FILTER
-        ================================================== */}
+    <p className="mt-2 text-xs text-neutral-500">Document submission scores are not official compliance ratings. A submitted B-BBEE affidavit earns no point.</p>
 
-        <div
-          className="
-            mt-4
-            border
-            border-neutral-200
-            bg-white
-            p-3
-            shadow-sm
-            sm:p-4
-          "
-        >
-          <div
-            className="
-              flex
-              flex-col
-              gap-3
-              md:flex-row
-              md:items-center
-            "
-          >
-            {/* SEARCH */}
+    {error && <p role="alert" className="mt-3 flex items-center gap-2 border border-red-200 bg-red-50 p-3 text-sm text-red-700"><AlertCircle size={16}/>{error}</p>}
 
-            <div
-              className="
-                relative
-                min-w-0
-                flex-1
-              "
-            >
-              <Search
-                className="
-                  absolute
-                  left-3
-                  top-1/2
-                  h-4
-                  w-4
-                  -translate-y-1/2
-                  text-neutral-400
-                "
-              />
+    <p className="mt-5 text-xs text-neutral-500">{filtered.length} advisory requests</p>
 
-              <input
-                type="search"
-                value={search}
-                onChange={(event) =>
-                  setSearch(
-                    event.target.value
-                  )
-                }
-                placeholder="Search supplier, company or request..."
-                className="
-                  h-10
-                  w-full
-                  border
-                  border-neutral-300
-                  bg-white
-                  pl-9
-                  pr-3
-                  text-xs
-                  outline-none
-                  transition
-                  placeholder:text-neutral-400
-                  focus:border-[#201E64]
-                  focus:ring-1
-                  focus:ring-[#201E64]/10
-                  sm:text-sm
-                "
-              />
-            </div>
+    {loading ? <p className="p-10 text-center text-sm">Loading requests...</p> : <>
 
-            {/* STATUS FILTER */}
+      <div className="mt-3 hidden overflow-x-auto border border-neutral-200 md:block"><table className="w-full min-w-[840px] text-left text-xs"><thead className="bg-neutral-50 uppercase text-neutral-500"><tr>{["Subject", "Supplier", "B-BBEE Level", "Request Date", "Document Score", "Status", "Details"].map(h => <th key={h} className="px-3 py-3">{h}</th>)}</tr></thead><tbody>{paginated.map(r => <tr key={r.advisory_request_id} className="border-t border-neutral-100"><td className="px-3 py-3 font-bold text-[#201E64]">{display(r.subject)}</td><td className="px-3 py-3"><button type="button" className="font-semibold text-[#201E64] hover:underline" onClick={() => { open(r.advisory_request_id); setSupplierTab("information"); }}>{supplierName(r.supplier)}</button></td><td className="px-3 py-3"><span className="bg-[#201E64]/10 px-2 py-1 font-bold text-[#201E64]">{formatBeeLevel(r.supplier.bee_level)}</span></td><td className="px-3 py-3">{formatDate(r.request_date)}</td><td className="px-3 py-3"><button onClick={() => { open(r.advisory_request_id); setSupplierTab("documents"); }} className="inline-flex items-center gap-1 border border-neutral-200 px-2 py-1.5 font-bold text-[#201E64]"><FileText size={14}/>{score(r.supplier)}/5 <ChevronRight size={14}/></button></td><td className="px-3 py-3"><StatusBadge status={r.status}/></td><td className="px-3 py-3"><button onClick={() => open(r.advisory_request_id)} className="font-bold text-[#201E64]">View Request</button></td></tr>)}</tbody></table></div>
 
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(
-                  event.target.value
-                )
-              }
-              className="
-                h-10
-                w-full
-                border
-                border-neutral-300
-                bg-white
-                px-3
-                text-xs
-                text-neutral-700
-                outline-none
-                transition
-                focus:border-[#201E64]
-                focus:ring-1
-                focus:ring-[#201E64]/10
-                md:w-[180px]
-              "
-            >
-              <option value="ALL">
-                All Statuses
-              </option>
+      <div className="mt-3 grid gap-3 md:hidden">{paginated.map(r => <div key={r.advisory_request_id} className="border border-neutral-200 p-4"><div className="flex justify-between gap-2"><p className="font-bold text-[#201E64]">{display(r.subject)}</p><StatusBadge status={r.status}/></div><button onClick={() => { open(r.advisory_request_id); setSupplierTab("information"); }} className="mt-2 block text-xs font-bold text-[#201E64]">{supplierName(r.supplier)}</button><p className="mt-1 text-xs font-semibold text-[#201E64]">B-BBEE: {formatBeeLevel(r.supplier.bee_level)}</p><p className="mt-1 text-xs text-neutral-500">{formatDate(r.request_date)}</p><div className="mt-3 flex justify-between gap-3"><button onClick={() => { open(r.advisory_request_id); setSupplierTab("documents"); }} className="flex items-center gap-1 text-xs font-bold text-[#201E64]"><FileText size={14}/>{score(r.supplier)}/5 Documents</button><button onClick={() => open(r.advisory_request_id)} className="text-xs font-bold text-[#201E64]">View Request</button></div></div>)}</div>
 
-              <option value="PENDING">
-                Pending
-              </option>
+      {filtered.length > PAGE_SIZE && (
 
-              <option value="IN REVIEW">
-                In Review
-              </option>
+  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border border-neutral-200 bg-white p-3">
 
-              <option value="COMPLETED">
-                Completed
-              </option>
-            </select>
-          </div>
-        </div>
+    <span className="text-xs text-neutral-600">
 
-        {/* ==================================================
-            RESULTS HEADER
-        ================================================== */}
+      Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} requests
 
-        <div
-          className="
-            mt-5
-            flex
-            items-center
-            justify-between
-            gap-3
-          "
-        >
-          <h2
-            className="
-              text-sm
-              font-bold
-              sm:text-base
-            "
-            style={{ color: NAVY }}
-          >
-            Advisory Requests
-          </h2>
+    </span>
 
-          <span className="text-xs text-neutral-500">
-            {filteredRequests.length}{" "}
-            {filteredRequests.length === 1
-              ? "result"
-              : "results"}
-          </span>
-        </div>
+    <div className="flex items-center gap-2">
 
-        {/* ==================================================
-            DESKTOP / TABLET TABLE
-        ================================================== */}
+      <button type="button" disabled={currentPage === 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="border border-neutral-300 px-3 py-2 text-xs font-semibold text-[#201E64] disabled:opacity-40">Previous</button>
 
-        <div
-          className="
-            mt-3
-            hidden
-            overflow-hidden
-            border
-            border-neutral-200
-            bg-white
-            shadow-sm
-            md:block
-          "
-        >
-          <div className="overflow-x-auto">
-            <table
-              className="
-                w-full
-                min-w-[900px]
-              "
-            >
-              <thead className="bg-neutral-50">
-                <tr
-                  className="
-                    border-b
-                    border-neutral-200
-                  "
-                >
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-left
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Supplier
-                  </th>
+      <span className="text-xs font-semibold text-[#201E64]">Page {currentPage} of {totalPages}</span>
 
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-left
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Company
-                  </th>
+      <button type="button" disabled={currentPage === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="border border-neutral-300 px-3 py-2 text-xs font-semibold text-[#201E64] disabled:opacity-40">Next</button>
 
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-left
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Request
-                  </th>
+    </div>
 
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-left
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Support Area
-                  </th>
+  </div>
 
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-left
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Date
-                  </th>
+)}
 
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-left
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Status
-                  </th>
+      {!filtered.length && <div className="mt-3 border border-neutral-200 p-10 text-center text-sm text-neutral-500"><Inbox className="mx-auto mb-2"/>No requests found.</div>}
 
-                  <th
-                    className="
-                      px-4
-                      py-3
-                      text-right
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-wide
-                      text-neutral-400
-                    "
-                  >
-                    Details
-                  </th>
-                </tr>
-              </thead>
+    </>}
 
-              <tbody>
-                {filteredRequests.map(
-                  (request) => {
-                    const supplier =
-                      request.supplier;
+    <RequestDetails request={selected} onClose={close} onOpenSupplier={setSupplierTab} onStatusUpdate={updateStatus} saving={saving} updateError={updateError} supplierModalOpen={Boolean(supplierTab)}/>
 
-                    return (
-                      <tr
-                        key={request.id}
-                        onClick={() =>
-                          setSelectedRequest(
-                            request
-                          )
-                        }
-                        className="
-                          cursor-pointer
-                          border-b
-                          border-neutral-100
-                          transition
-                          last:border-b-0
-                          hover:bg-[#201E64]/[0.02]
-                        "
-                      >
-                        {/* SUPPLIER */}
+    {selected && supplierTab && <SupplierDetails supplier={selected.supplier} initialTab={supplierTab} onClose={() => setSupplierTab(null)} onUpdated={updateTax}/>}
 
-                        <td className="px-4 py-3">
-                          <div
-                            className="
-                              flex
-                              items-center
-                              gap-3
-                            "
-                          >
-                            <div
-                              className="
-                                flex
-                                h-8
-                                w-8
-                                shrink-0
-                                items-center
-                                justify-center
-                                bg-[#201E64]/10
-                              "
-                            >
-                              <UserRound
-                                className="h-4 w-4"
-                                style={{
-                                  color:
-                                    NAVY,
-                                }}
-                              />
-                            </div>
+  </div>;
 
-                            <span
-                              className="
-                                whitespace-nowrap
-                                text-xs
-                                font-bold
-                                text-neutral-800
-                              "
-                            >
-                              {
-                                supplier.firstName
-                              }{" "}
-                              {
-                                supplier.lastName
-                              }
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* COMPANY */}
-
-                        <td
-                          className="
-                            max-w-[180px]
-                            px-4
-                            py-3
-                            text-xs
-                            text-neutral-600
-                          "
-                        >
-                          <p className="truncate">
-                            {
-                              supplier.company
-                            }
-                          </p>
-                        </td>
-
-                        {/* REQUEST */}
-
-                        <td
-                          className="
-                            max-w-[190px]
-                            px-4
-                            py-3
-                            text-xs
-                            font-semibold
-                            text-neutral-700
-                          "
-                        >
-                          <p className="truncate">
-                            {
-                              request.subject
-                            }
-                          </p>
-                        </td>
-
-                        {/* SUPPORT AREA */}
-
-                        <td
-                          className="
-                            px-4
-                            py-3
-                            text-xs
-                            text-neutral-500
-                          "
-                        >
-                          {
-                            request.supportArea
-                          }
-                        </td>
-
-                        {/* DATE */}
-
-                        <td
-                          className="
-                            whitespace-nowrap
-                            px-4
-                            py-3
-                            text-xs
-                            text-neutral-500
-                          "
-                        >
-                          {
-                            request.requestDate
-                          }
-                        </td>
-
-                        {/* STATUS */}
-
-                        <td className="px-4 py-3">
-                          <StatusBadge
-                            status={
-                              request.status
-                            }
-                          />
-                        </td>
-
-                        {/* VIEW */}
-
-                        <td
-                          className="
-                            px-4
-                            py-3
-                            text-right
-                          "
-                        >
-                          <button
-                            type="button"
-                            onClick={(
-                              event
-                            ) => {
-                              event.stopPropagation();
-
-                              setSelectedRequest(
-                                request
-                              );
-                            }}
-                            className="
-                              inline-flex
-                              items-center
-                              gap-1
-                              text-xs
-                              font-semibold
-                              text-[#201E64]
-                              hover:underline
-                            "
-                          >
-                            View
-
-                            <ChevronRight className="h-3.5 w-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  }
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* ==================================================
-            MOBILE CARDS
-        ================================================== */}
-
-        <div
-          className="
-            mt-3
-            grid
-            grid-cols-1
-            gap-3
-            md:hidden
-          "
-        >
-          {filteredRequests.map(
-            (request) => (
-              <RequestCard
-                key={request.id}
-                request={request}
-                onClick={() =>
-                  setSelectedRequest(
-                    request
-                  )
-                }
-              />
-            )
-          )}
-        </div>
-
-        {/* ==================================================
-            NO RESULTS
-        ================================================== */}
-
-        {filteredRequests.length ===
-          0 && (
-          <div
-            className="
-              mt-3
-              border
-              border-neutral-200
-              bg-white
-              px-4
-              py-10
-              text-center
-              shadow-sm
-            "
-          >
-            <div
-              className="
-                mx-auto
-                flex
-                h-10
-                w-10
-                items-center
-                justify-center
-                bg-neutral-100
-              "
-            >
-              <Search className="h-5 w-5 text-neutral-400" />
-            </div>
-
-            <h3
-              className="
-                mt-3
-                text-sm
-                font-bold
-                text-neutral-700
-              "
-            >
-              No requests found
-            </h3>
-
-            <p
-              className="
-                mt-1
-                text-xs
-                text-neutral-500
-              "
-            >
-              Try changing your search or
-              status filter.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSearch("");
-                setStatusFilter("ALL");
-              }}
-              className="
-                mt-4
-                text-xs
-                font-semibold
-                text-[#201E64]
-                hover:underline
-              "
-            >
-              Clear filters
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ==================================================
-          REQUEST DETAILS MODAL
-      ================================================== */}
-
-      <BusinessRequestDetails
-        request={selectedRequest}
-        onClose={() =>
-          setSelectedRequest(null)
-        }
-        onStatusUpdate={
-          handleStatusUpdate
-        }
-      />
-    </>
-  );
 }
