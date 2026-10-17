@@ -860,19 +860,54 @@ export default function CompanyRegistration() {
     useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  // Personal fields come from the authenticated session, not user input.
+  // Populate read-only personal fields from the authenticated user.
+  // Never erase an existing value when a partial auth response omits it.
   useEffect(() => {
     if (!user) return;
     setForm((current) => ({
       ...current,
-      firstName: user.first_name ?? "",
-      lastName: user.last_name ?? "",
-      idNumber: user.id_number ?? "",
-      gender: user.gender ?? "",
-      phone: user.phone_number ?? "",
-      email: user.email ?? "",
+      firstName: user.first_name ?? current.firstName,
+      lastName: user.last_name ?? current.lastName,
+      idNumber: user.id_number ?? current.idNumber,
+      gender: user.gender ?? current.gender,
+      phone: user.phone_number ?? current.phone,
+      email: user.email ?? current.email,
     }));
   }, [user]);
+
+  // Refresh the full user profile: login/refresh responses sometimes omit gender.
+  // Requires GET /api/auth/me to return the user's gender from the database.
+  useEffect(() => {
+    if (!token || !user?.user_id) return;
+    let cancelled = false;
+
+    const loadPersonalDetails = async () => {
+      try {
+        const { data } = await api.get("/auth/me");
+        const profile = data?.data?.user ?? data?.user ?? data?.data ?? null;
+        if (!profile || cancelled) return;
+        if (profile.user_id != null && String(profile.user_id) !== String(user.user_id)) return;
+
+        setForm((current) => ({
+          ...current,
+          firstName: profile.first_name ?? current.firstName,
+          lastName: profile.last_name ?? current.lastName,
+          idNumber: profile.id_number ?? current.idNumber,
+          gender: profile.gender ?? current.gender,
+          phone: profile.phone_number ?? current.phone,
+          email: profile.email ?? current.email,
+        }));
+        if (profile.gender == null) {
+          console.warn("GET /auth/me did not include gender. Include gender in the backend SELECT and response.");
+        }
+      } catch (error) {
+        if (!cancelled) console.error("Unable to load personal details:", error.response?.data?.message || error.message);
+      }
+    };
+
+    loadPersonalDetails();
+    return () => { cancelled = true; };
+  }, [token, user?.user_id]);
 
   // The server is the source of truth, including after page refresh or login.
   const loadRegistrationStatus = async () => {
