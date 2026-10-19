@@ -54,15 +54,29 @@ const ENDPOINTS = {
   rfqDetails: (id) => `/rfqs/${id}/details`,
 };
 
-async function apiRequest(path, options = {}) {
-  const { method = "GET", body, headers, ...rest } = options;
+function getStoredAccessToken() {
   try {
+    const auth = JSON.parse(sessionStorage.getItem("tongaat_auth") || "{}");
+    return auth.accessToken || auth.access_token || auth.token ||
+      auth.data?.accessToken || auth.data?.access_token || auth.data?.token || null;
+  } catch {
+    return null;
+  }
+}
+
+async function apiRequest(path, options = {}) {
+  const { method = "GET", body, headers = {}, ...rest } = options;
+  try {
+    const token = getStoredAccessToken();
     const response = await api.request({
       url: path,
       method,
       data: body,
-      headers,
       ...rest,
+      headers: {
+        ...headers,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     });
     if (response.data?.success === false) {
       throw new Error(response.data.message || "Request failed.");
@@ -1300,19 +1314,31 @@ function Pagination({ page, setPage, total, pageSize }) {
 function OpportunityDetailsScreen({ opportunity, type, onBack }) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [beeLevelFilter, setBeeLevelFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedResponse, setSelectedResponse] = useState(null);
   const [supplierOverrides, setSupplierOverrides] = useState({});
   const pageSize = 8;
   const responses = opportunity.responses || [];
+  // B-BBEE levels are derived from the actual response results.
+  // Selecting a compliance category narrows the available B-BBEE options.
+  const complianceResponses = useMemo(() => responses.filter(response => {
+    const score = documentScore(response.supplier);
+    return (COMPLIANCE_FILTERS.find(item => item.key === filter) || COMPLIANCE_FILTERS[0]).match(score);
+  }), [responses, filter]);
+  const beeLevelOptions = useMemo(() => [...new Set(
+    complianceResponses.map(response => String(response.beeLevel ?? "").trim())
+      .filter(value => value && value.toLowerCase() !== "not provided")
+  )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [complianceResponses]);
   const filtered = useMemo(() => responses.filter(response => {
     const score = documentScore(response.supplier);
     const matchesFilter = (COMPLIANCE_FILTERS.find(item => item.key === filter) || COMPLIANCE_FILTERS[0]).match(score);
     const q = search.toLowerCase().trim();
     const matchesSearch = !q || [response.company,response.firstName,response.lastName,response.email,response.locality]
       .some(value => String(value || "").toLowerCase().includes(q));
-    return matchesFilter && matchesSearch;
-  }), [responses,search,filter]);
+    const matchesBeeLevel = beeLevelFilter === "all" || String(response.beeLevel ?? "").trim() === beeLevelFilter;
+    return matchesFilter && matchesBeeLevel && matchesSearch;
+  }), [responses,search,filter,beeLevelFilter]);
   const pageRows = filtered.slice((page-1)*pageSize,page*pageSize);
   const updateSupplierTax = (businessId, status) => {
     setSupplierOverrides(prev => ({...prev,[businessId]: {...(prev[businessId]||{}),tax_compliance_status:status}}));
@@ -1358,7 +1384,7 @@ function OpportunityDetailsScreen({ opportunity, type, onBack }) {
               key={item.key}
               type="button"
               aria-pressed={filter === item.key}
-              onClick={() => { setFilter(item.key); setPage(1); }}
+              onClick={() => { setFilter(item.key); setBeeLevelFilter("all"); setPage(1); }}
               className={`border px-3 py-2 text-xs font-semibold transition ${filter === item.key
                 ? "border-[#201E64] bg-[#201E64] text-white"
                 : "border-neutral-200 bg-white text-neutral-600 hover:border-[#201E64]"}`}
@@ -1369,12 +1395,25 @@ function OpportunityDetailsScreen({ opportunity, type, onBack }) {
         </div>
         <div className="flex flex-col gap-2 bg-white p-3 sm:flex-row">
           <div className="relative flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-neutral-400"/><input type="search" value={search} onChange={e => {setSearch(e.target.value);setPage(1)}} placeholder="Search supplier or company..." className="h-10 w-full border border-neutral-300 pl-9 pr-3 text-sm focus:border-[#201E64] focus:outline-none" /></div>
+          <div className="w-full sm:w-56">
+            <label htmlFor="response-bee-level" className="mb-1 block text-xs font-semibold text-neutral-600">B-BBEE level</label>
+            <select
+              id="response-bee-level"
+              value={beeLevelFilter}
+              onChange={e => { setBeeLevelFilter(e.target.value); setPage(1); }}
+              className="h-10 w-full border border-neutral-300 bg-white px-3 text-sm focus:border-[#201E64] focus:outline-none"
+            >
+              <option value="all">All B-BBEE levels</option>
+              {beeLevelOptions.map(level => <option key={level} value={level}>{level}</option>)}
+            </select>
+          </div>
 
         </div>
         {filtered.length === 0 ? <div className="border bg-white p-8 text-center text-sm text-neutral-500">No supplier responses match your filters.</div> : <>
           <div className="grid gap-3 md:hidden">
             {pageRows.map(r => {const score=documentScore(r.supplier);return <button key={r.id} type="button" onClick={()=>setSelectedResponse(r)} className="border bg-white p-4 text-left">
               <div className="flex justify-between gap-2"><div><p className="font-bold text-[#201E64]">{r.company}</p><p className="text-xs text-neutral-500">{r.firstName} {r.lastName}</p></div><ComplianceLabel score={score}/></div>
+              <p className="mt-2 text-xs">B-BBEE: <strong>{r.beeLevel}</strong></p>
               <p className="mt-3 text-xs">Documents: <strong>{score}/5</strong></p>{type==="rfq"&&<p className="mt-1 text-xs">Quotation: {r.quotationAmount||"—"}</p>}
               <p className="mt-2 text-xs font-bold text-[#201E64]">View supplier →</p>
             </button>})}
@@ -1959,7 +1998,7 @@ export default function OpportunitiesScreen() {
       throw new Error("User ID is missing from your login session. Please log in again.");
     }
     payload.published_by = userId;
-    formData.append(type === "rfq" ? "rfqData" : "tenderData", JSON.stringify(payload));
+    formData.append(type === "rfq" ? "rfqData" : "data", JSON.stringify(payload));
     formData.append("opportunity_document", data.document);
 
     await apiRequest(type === "rfq" ? ENDPOINTS.createRfq : ENDPOINTS.createTender, {
