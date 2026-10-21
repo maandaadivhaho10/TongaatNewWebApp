@@ -8,11 +8,12 @@ import {
 
   XCircle, ExternalLink, RefreshCw, ShieldCheck, Phone, Mail,
 
-  Eye, EyeOff, Save,
+  Save,
 
 } from "lucide-react";
 
 import api from "../../API/axiosInstance";
+
 import { useAuth } from "../../context/AuthContext";
 
 const NAVY = "#201E64";
@@ -22,8 +23,6 @@ const NAVY = "#201E64";
 const SUPPLIERS_ENDPOINT = "/suppliers";
 
 const TAX_STATUS_ENDPOINT = (id) => `/tax-compliance/${id}/status`;
-
-const TAX_PIN_ENDPOINT = (id) => `/tax-compliance/${id}/pin`;
 
 const TAX_STATUSES = ["NOT_VERIFIED", "COMPLIANT", "NON_COMPLIANT"];
 
@@ -225,19 +224,12 @@ function TaxCompliancePanel({ supplier, onUpdated }) {
 
   const [saveError, setSaveError] = useState("");
 
-  const [pin, setPin] = useState(null);
-
-  const [showPin, setShowPin] = useState(false);
-
-  const [pinLoading, setPinLoading] = useState(false);
-
-  const [pinError, setPinError] = useState("");
 
   useEffect(() => {
 
     setStatus(supplier.tax_compliance_status || "NOT_VERIFIED");
 
-    setPin(null); setShowPin(false); setPinError(""); setSaveError(""); setSaveMessage("");
+    setSaveError(""); setSaveMessage("");
 
   }, [supplier.business_id, supplier.tax_compliance_status]);
 
@@ -263,32 +255,6 @@ function TaxCompliancePanel({ supplier, onUpdated }) {
 
   };
 
-  const togglePin = async () => {
-
-    if (showPin) { setShowPin(false); setPin(null); return; }
-
-    setPinLoading(true); setPinError("");
-
-    try {
-
-      const response = await api.get(TAX_PIN_ENDPOINT(supplier.business_id));
-
-      const fetched = response.data?.tax_compliance_pin ?? response.data?.data?.tax_compliance_pin;
-
-      if (!fetched) throw new Error("The PIN was not returned by the server.");
-
-      setPin(String(fetched)); setShowPin(true);
-
-    } catch (err) {
-
-      setPinError(err.response?.data?.message || err.message || "Unable to retrieve the PIN.");
-
-    } finally { setPinLoading(false); }
-
-  };
-
-  const hasPin = provided(docStatuses(supplier).tax_compliance_pin);
-
   return <section className="space-y-4 border border-neutral-200 bg-neutral-50 p-4">
 
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -305,19 +271,9 @@ function TaxCompliancePanel({ supplier, onUpdated }) {
 
         <p className="mb-2 text-xs font-semibold text-neutral-500">Tax Compliance PIN</p>
 
-        {hasPin ? <>
-
-          <p className="break-all font-mono text-sm font-semibold text-neutral-800">{showPin ? pin : "•••••••• (hidden)"}</p>
-
-          <button type="button" onClick={togglePin} disabled={pinLoading} className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#201E64] disabled:opacity-50">
-
-            {showPin ? <EyeOff size={15} /> : <Eye size={15} />}{pinLoading ? "Loading..." : showPin ? "Hide PIN" : "Show PIN"}
-
-          </button>
-
-        </> : <p className="text-xs text-neutral-500">Not provided</p>}
-
-        {pinError && <p role="alert" className="mt-2 text-xs text-red-700">{pinError}</p>}
+        <p className="break-all font-mono text-sm font-semibold text-neutral-800">
+          {display(supplier.tax_compliance_pin)}
+        </p>
 
       </div>
 
@@ -470,6 +426,7 @@ export function SupplierDetails({ supplier, initialTab, onClose, onUpdated }) {
 }
 
 export default function SuppliersScreen() {
+
   const { loading: authLoading, isAuthenticated } = useAuth();
 
   const [suppliers, setSuppliers] = useState([]);
@@ -507,13 +464,21 @@ export default function SuppliersScreen() {
   }, []);
 
   useEffect(() => {
+
     if (authLoading) return;
+
     if (!isAuthenticated) {
+
       setLoading(false);
+
       setError("Please log in to view registered suppliers.");
+
       return;
+
     }
+
     fetchSuppliers();
+
   }, [authLoading, isAuthenticated, fetchSuppliers]);
 
   const filtered = useMemo(() => {

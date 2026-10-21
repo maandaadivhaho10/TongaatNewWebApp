@@ -58,7 +58,7 @@ function Avatar({ name, support = false, size = "md" }) {
   );
 }
 
-export default function ChatScreen() {
+export default function ChatScreen({ initialConversationId = null }) {
   const { user } = useAuth();
   const roleId = Number(user?.role_id);
   const userId = Number(user?.user_id);
@@ -136,6 +136,19 @@ export default function ChatScreen() {
       setLoadingMessages(false);
     }
   }, [userId, isSupplier, isED, loadSupplierChat, loadEDConversations]);
+
+  // Open the exact supplier conversation passed by the ED dashboard.
+  useEffect(() => {
+    const id = Number(initialConversationId);
+    if (!isED || !Number.isSafeInteger(id) || id <= 0 || loadingList) return;
+    if (selectedIdRef.current === id) return;
+    selectedIdRef.current = id;
+    setSelectedId(id);
+    setMessages([]);
+    setError("");
+    setMobileChatOpen(true);
+    loadEDMessages(id);
+  }, [initialConversationId, isED, loadingList, loadEDMessages]);
 
   const openConversation = (idValue) => {
     const id = Number(idValue);

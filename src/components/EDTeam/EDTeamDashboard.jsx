@@ -1,5 +1,5 @@
 import api from "../../API/axiosInstance";
-import { RefreshCw } from "lucide-react";
+import { useEffect, useCallback } from "react";
 import React, { useState } from "react";
 import {
   LayoutDashboard,
@@ -24,9 +24,18 @@ import BusinessRequestsScreen from "./BusinessRequestsScreen";
 import MeetingsWorkshopsScreen from "./MeetingsWorkshopsScreen";
 import OpportunitiesScreen from "./OpportunitiesScreen";
 import ChatScreen from "../Chat/ChatScreen";
+import { openSupplierConversation } from "../../API/chatApi";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 const NAVY = "#201E64";
+// ======================================================
+// Dashboard metrics are fetched from the backend.
+// The statistics endpoint does not return funding, meeting, workshop
+// or programme counts, so those are not shown as fabricated values.
+// ======================================================
+// ======================================================
+// RECENT ADVISORY REQUESTS
+// ======================================================
 // ======================================================
 // NAVIGATION
 // ======================================================
@@ -125,6 +134,9 @@ function StatCard({
   );
 }
 // ======================================================
+// QUICK ACTION
+// ======================================================
+// ======================================================
 // GENDER DISTRIBUTION ROW
 // ======================================================
 function GenderRow({
@@ -173,122 +185,330 @@ function GenderRow({
   );
 }
 // ======================================================
+// STATUS BADGE
+// ======================================================
+// ======================================================
 // DASHBOARD CONTENT
 // ======================================================
 function DashboardContent({ displayName }) {
-  const [stats, setStats] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState("");
-  const [refreshing, setRefreshing] = React.useState(false);
-  const fetchStatistics = React.useCallback(async (signal, refresh = false) => {
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState("");
+  const [statsRefreshing, setStatsRefreshing] = useState(false);
+
+  const loadStatistics = useCallback(async (refresh = false) => {
     try {
-      if (refresh) setRefreshing(true);
-      else setLoading(true);
-      setError("");
-      const response = await api.get("/dashboard/statistics", { signal });
+      if (refresh) setStatsRefreshing(true);
+      else setStatsLoading(true);
+      setStatsError("");
+      const response = await api.get("/dashboard/statistics");
       if (response.data?.success !== true || !response.data?.data) {
-        throw new Error(response.data?.message || "Invalid dashboard statistics response");
+        throw new Error(response.data?.message || "Unable to retrieve dashboard statistics");
       }
       setStats(response.data.data);
-    } catch (err) {
-      if (err.code === "ERR_CANCELED" || err.name === "CanceledError") return;
-      setError(err.response?.data?.message || err.message || "Unable to load dashboard statistics");
+    } catch (error) {
+      setStatsError(error.response?.data?.message || error.message || "Failed to load dashboard statistics");
     } finally {
-      if (!signal?.aborted) {
-        setLoading(false);
-        setRefreshing(false);
-      }
+      setStatsLoading(false);
+      setStatsRefreshing(false);
     }
   }, []);
-  React.useEffect(() => {
-    const controller = new AbortController();
-    fetchStatistics(controller.signal);
-    return () => controller.abort();
-  }, [fetchStatistics]);
-  const count = (key) => stats ? Number(stats[key] ?? 0).toLocaleString("en-ZA") : "—";
-  const gender = {
-    male: Number(stats?.total_male_suppliers || 0),
-    female: Number(stats?.total_female_suppliers || 0),
-    other: Number(stats?.total_other_suppliers || 0),
+
+  useEffect(() => {
+    loadStatistics();
+  }, [loadStatistics]);
+
+  const numberOrDash = (value) =>
+    value == null ? "—" : Number(value).toLocaleString("en-ZA");
+
+  const dashboardData = {
+    teamName: "Enterprise Development Team",
+    registeredSuppliers: numberOrDash(stats?.total_registered_suppliers),
+    opportunitiesCreated: stats
+      ? numberOrDash(Number(stats.total_rfqs || 0) + Number(stats.total_tenders || 0))
+      : "—",
+    fundingOpportunitiesCreated: "—",
+    advisoryRequests: numberOrDash(stats?.total_business_advisory),
+    meetingsCreated: "—",
+    workshopsCreated: "—",
+    programmesCreated: "—",
+    genderDistribution: {
+      male: Number(stats?.total_male_suppliers || 0),
+      female: Number(stats?.total_female_suppliers || 0),
+      other: Number(stats?.total_other_suppliers || 0),
+    },
   };
-  const genderTotal = gender.male + gender.female + gender.other;
-  const totalOpportunities = stats
-    ? Number(stats.total_rfqs || 0) + Number(stats.total_tenders || 0)
-    : null;
-  const cards = [
-    { title: "Registered Suppliers", value: count("total_registered_suppliers"), description: "Completed supplier registrations", icon: Users },
-    { title: "Business Opportunities", value: totalOpportunities === null ? "—" : totalOpportunities.toLocaleString("en-ZA"), description: "RFQs and tenders combined", icon: BriefcaseBusiness },
-    { title: "Business Advisory Requests", value: count("total_business_advisory"), description: "All advisory requests received", icon: MessageSquareText },
-    { title: "ESD Activities", value: count("total_esd_activities"), description: "Total ESD activities created", icon: CalendarDays },
-    { title: "RFQs", value: count("total_rfqs"), description: "Request for quotation opportunities", icon: ClipboardList },
-    { title: "Tenders", value: count("total_tenders"), description: "Tender opportunities published", icon: BriefcaseBusiness },
-  ];
+
+  const totalGender =
+    dashboardData.genderDistribution.male +
+    dashboardData.genderDistribution.female +
+    dashboardData.genderDistribution.other;
   return (
-    <div className="w-full min-w-0 space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#201E64]">Enterprise Development Team</p>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">ED Team Dashboard</h1>
-          <p className="mt-2 text-sm font-semibold text-[#201E64]">Welcome, {displayName}!</p>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">Overview of registered suppliers, business opportunities, advisory requests and development activities.</p>
+    <div className="w-full">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-xs text-neutral-500">
+          {statsLoading && !stats ? "Loading dashboard statistics..." : stats ? "Dashboard statistics from API" : "Statistics unavailable"}
         </div>
         <button
           type="button"
-          disabled={loading || refreshing}
-          onClick={() => fetchStatistics(undefined, true)}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-[#201E64] shadow-sm transition hover:border-[#201E64]/40 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={() => loadStatistics(true)}
+          disabled={statsRefreshing || statsLoading}
+          className="rounded border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold text-[#201E64] disabled:opacity-50"
         >
-          <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
-          {refreshing ? "Refreshing..." : "Refresh Statistics"}
+          {statsRefreshing ? "Refreshing..." : "Refresh Statistics"}
         </button>
       </div>
-      {error && (
-        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <span>{error}{stats ? " Showing previously loaded statistics." : ""}</span>
-          <button type="button" onClick={() => fetchStatistics(undefined, true)} className="font-bold underline">Try again</button>
+      {statsError && (
+        <div role="alert" className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {statsError}
         </div>
       )}
-      <section aria-label="Dashboard statistics">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-base font-bold text-[#201E64] sm:text-lg">Overview</h2>
-          <span className="text-xs text-slate-400">{loading ? "Loading statistics..." : stats ? "Live portal statistics" : "Statistics unavailable"}</span>
+
+      {/* ==================================================
+          HEADER
+      ================================================== */}
+      <div
+        className="
+          mb-5
+          flex
+          flex-col
+          gap-3
+          sm:flex-row
+          sm:items-end
+          sm:justify-between
+        "
+      >
+        <div className="min-w-0">
+          <p
+            className="
+              text-xs
+              font-semibold
+              uppercase
+              tracking-wider
+            "
+            style={{ color: NAVY }}
+          >
+            {dashboardData.teamName}
+          </p>
+          <h1
+            className="
+              mt-1
+              text-2xl
+              font-extrabold
+              tracking-tight
+              text-neutral-900
+              sm:text-3xl
+            "
+          >
+            ED Team Dashboard
+          </h1>
+          <p className="mt-2 text-sm font-semibold text-[#201E64]">Welcome, {displayName}!</p>
+          <p
+            className="
+              mt-1
+              max-w-2xl
+              text-xs
+              leading-5
+              text-neutral-500
+              sm:text-sm
+            "
+          >
+            Manage suppliers, business support requests,
+            meetings, workshops, programmes and business
+            opportunities.
+          </p>
         </div>
-        <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {cards.map(({ title, value, description, icon: Icon }) => (
-            <div key={title} className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-500">{title}</p>
-                  <p className="mt-3 text-3xl font-extrabold tracking-tight text-[#201E64]">{loading && !stats ? "…" : value}</p>
-                </div>
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#201E64]/10 text-[#201E64]"><Icon size={20} /></div>
-              </div>
-              <p className="mt-3 text-xs leading-5 text-slate-400">{description}</p>
+      </div>
+      {/* ==================================================
+          MAIN STATISTICS
+      ================================================== */}
+      <div
+        className="
+          grid
+          grid-cols-1
+          gap-3
+          min-[480px]:grid-cols-2
+          xl:grid-cols-4
+        "
+      >
+        <StatCard
+          title="Registered Suppliers"
+          value={
+            dashboardData.registeredSuppliers
+          }
+          description="Total suppliers registered on the portal"
+          icon={Users}
+        />
+        <StatCard
+          title="Business Opportunities"
+          value={
+            dashboardData.opportunitiesCreated
+          }
+          description="Total tender and RFQ opportunities created"
+          icon={BriefcaseBusiness}
+        />
+        <StatCard
+          title="RFQs"
+          value={numberOrDash(stats?.total_rfqs)}
+          description="Total RFQ opportunities created"
+          icon={CircleDollarSign}
+        />
+        <StatCard
+          title="Business Advisory Requests"
+          value={
+            dashboardData.advisoryRequests
+          }
+          description="Total business advisory requests received"
+          icon={MessageSquareText}
+        />
+      </div>
+      {/* ==================================================
+          SECONDARY STATISTICS
+      ================================================== */}
+      <div
+        className="
+          mt-3
+          grid
+          grid-cols-1
+          gap-3
+          min-[480px]:grid-cols-2
+          xl:grid-cols-3
+        "
+      >
+        <StatCard
+          title="Tenders"
+          value={numberOrDash(stats?.total_tenders)}
+          description="Total tender opportunities created"
+          icon={CalendarDays}
+        />
+        <StatCard
+          title="ESD Activities"
+          value={numberOrDash(stats?.total_esd_activities)}
+          description="Total ESD activities"
+          icon={TrendingUp}
+        />
+      </div>
+      {/* ==================================================
+          GENDER DISTRIBUTION
+      ================================================== */}
+      <div
+        className="
+          mt-6
+          grid
+          grid-cols-1
+          gap-4
+          xl:grid-cols-1
+        "
+      >
+        {/* ==================================================
+            GENDER DISTRIBUTION
+        ================================================== */}
+        <section
+          className="
+            border
+            border-neutral-200
+            bg-white
+            p-4
+            shadow-sm
+            sm:p-5
+            xl:col-span-1
+          "
+        >
+          <div
+            className="
+              flex
+              items-start
+              justify-between
+              gap-3
+            "
+          >
+            <div className="min-w-0">
+              <h2
+                className="
+                  text-base
+                  font-bold
+                  sm:text-lg
+                "
+                style={{ color: NAVY }}
+              >
+                Gender Distribution
+              </h2>
+              <p className="mt-0.5 text-xs text-neutral-500">
+                Registered supplier representatives
+              </p>
             </div>
-          ))}
-        </div>
-      </section>
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-label="Supplier gender distribution">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-[#201E64] sm:text-lg">Gender Distribution</h2>
-            <p className="mt-1 text-xs text-slate-500">Registered supplier representatives with completed business registrations</p>
+            <div
+              className="
+                flex
+                h-9
+                w-9
+                shrink-0
+                items-center
+                justify-center
+                bg-[#201E64]/10
+              "
+            >
+              <UserRound
+                className="h-4 w-4"
+                style={{ color: NAVY }}
+              />
+            </div>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#201E64]/10 text-[#201E64]"><UserRound size={20} /></div>
-        </div>
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(180px,0.4fr)] lg:items-center">
-          <div className="space-y-5">
-            <GenderRow label="Male" value={gender.male} total={genderTotal} />
-            <GenderRow label="Female" value={gender.female} total={genderTotal} />
-            <GenderRow label="Other / Not specified" value={gender.other} total={genderTotal} />
+          <div className="mt-5 space-y-4">
+            <GenderRow
+              label="Male"
+              value={
+                dashboardData
+                  .genderDistribution.male
+              }
+              total={totalGender}
+            />
+            <GenderRow
+              label="Female"
+              value={
+                dashboardData
+                  .genderDistribution.female
+              }
+              total={totalGender}
+            />
+            <GenderRow
+              label="Other / Not specified"
+              value={
+                dashboardData
+                  .genderDistribution.other
+              }
+              total={totalGender}
+            />
           </div>
-          <div className="rounded-xl bg-[#F5F6FA] p-5 text-center">
-            <p className="text-xs font-semibold text-slate-500">Total Representatives</p>
-            <p className="mt-2 text-4xl font-extrabold text-[#201E64]">{loading && !stats ? "…" : genderTotal.toLocaleString("en-ZA")}</p>
-            <p className="mt-2 text-xs text-slate-500">Across reported gender categories</p>
+          <div
+            className="
+              mt-5
+              border-t
+              border-neutral-100
+              pt-3
+            "
+          >
+            <div
+              className="
+                flex
+                items-center
+                justify-between
+              "
+            >
+              <span className="text-xs text-neutral-500">
+                Total
+              </span>
+              <span
+                className="text-sm font-bold"
+                style={{ color: NAVY }}
+              >
+                {totalGender}
+              </span>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+      </div>
     </div>
   );
 }
@@ -349,6 +569,31 @@ export default function EDTeamDashboard() {
   };
   const [activeScreen, setActiveScreen] =
     useState("dashboard");
+  const [selectedChatId, setSelectedChatId] = useState(null);
+  const [chatOpenError, setChatOpenError] = useState("");
+  const [openingSupplierChat, setOpeningSupplierChat] = useState(false);
+  const handleOpenSupplierChat = async (supplierId) => {
+    if (!Number.isSafeInteger(Number(supplierId)) || Number(supplierId) <= 0) {
+      setChatOpenError("Supplier user ID is missing from this advisory request.");
+      return;
+    }
+    try {
+      setOpeningSupplierChat(true);
+      setChatOpenError("");
+      const result = await openSupplierConversation(Number(supplierId));
+      const id = Number(result?.data?.conversation_id);
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new Error("Chat API did not return a valid conversation ID.");
+      }
+      setSelectedChatId(id);
+      setActiveScreen("chat");
+      setMobileMenuOpen(false);
+    } catch (err) {
+      setChatOpenError(err?.response?.data?.message || err.message || "Unable to open supplier chat.");
+    } finally {
+      setOpeningSupplierChat(false);
+    }
+  };
   const [
     mobileMenuOpen,
     setMobileMenuOpen,
@@ -358,6 +603,7 @@ export default function EDTeamDashboard() {
   // ======================================================
   const handleNavigation = (id) => {
     setActiveScreen(id);
+    if (id === "chat") setSelectedChatId(null);
     setMobileMenuOpen(false);
   };
   // ======================================================
@@ -368,13 +614,13 @@ export default function EDTeamDashboard() {
       case "suppliers":
       return <SuppliersScreen />;
        case "requests":
-      return <BusinessRequestsScreen />;
+      return <BusinessRequestsScreen onMessageSupplier={handleOpenSupplierChat} />;
       case "meetings":
   return <MeetingsWorkshopsScreen />;
       case "opportunities":
   return <OpportunitiesScreen />;
       case "chat":
-        return <ChatScreen />;
+        return <ChatScreen initialConversationId={selectedChatId} />;
       default:
         return <DashboardContent displayName={displayName} />;
     }
@@ -830,7 +1076,16 @@ export default function EDTeamDashboard() {
               xl:p-8
             "
           >
-            {renderScreen()}
+            {chatOpenError && activeScreen === "requests" && (
+                <div role="alert" className="mb-4 border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {chatOpenError}
+                  <button type="button" onClick={() => setChatOpenError("")} className="ml-3 font-semibold underline">Dismiss</button>
+                </div>
+              )}
+              {openingSupplierChat && activeScreen === "requests" && (
+                <p role="status" className="mb-3 text-sm text-[#201E64]">Opening supplier conversation...</p>
+              )}
+              {renderScreen()}
           </main>
         </div>
       </div>

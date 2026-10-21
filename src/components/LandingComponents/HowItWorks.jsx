@@ -1,59 +1,68 @@
-import React from 'react';
+
+import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   UserPlus,
   Search,
   Rocket,
   Check,
   ArrowRight
-} from 'lucide-react';
+} from "lucide-react";
 
-const NAVY = '#201E64';
+const NAVY = "#201E64";
 
 export default function HowItWorks() {
+  const navigate = useNavigate();
+
   const steps = [
     {
-      step: '01',
-      title: 'Create Your Profile',
-      tag: 'Step 1: Onboarding',
+      step: "01",
+      title: "Create Your Profile",
+      tag: "Step 1: Onboarding",
       description:
-        'Register your business and provide your company information, compliance documentation, and enterprise capacity.',
+        "Register your business and provide your company information, compliance documentation, and enterprise capacity.",
       icon: UserPlus,
-      actionTitle: 'Information needed:',
+      actionTitle: "Information needed:",
       bullets: [
-        'CIPC registration & tax compliance PIN',
-        'B-BBEE certificate or sworn affidavit',
-        'Business capability profile'
+        "CIPC registration & tax compliance PIN",
+        "B-BBEE certificate or sworn affidavit",
+        "Business capability profile"
       ]
     },
     {
-      step: '02',
-      title: 'Discover Opportunities',
-      tag: 'Step 2: Exploration',
+      step: "02",
+      title: "Discover Opportunities",
+      tag: "Step 2: Exploration",
       description:
-        'Browse opportunities, ESD programmes, corporate procurement requirements, and development support available to your business.',
+        "Browse opportunities, ESD programmes, corporate procurement requirements, and development support available to your business.",
       icon: Search,
-      actionTitle: 'What you access:',
+      actionTitle: "What you access:",
       bullets: [
-        'Corporate supply chain opportunities',
-        'Supplier development programmes',
-        'Targeted enterprise advisory'
+        "Corporate supply chain opportunities",
+        "Supplier development programmes",
+        "Targeted enterprise advisory"
       ]
     },
     {
-      step: '03',
-      title: 'Apply & Grow',
-      tag: 'Step 3: Partnership',
+      step: "03",
+      title: "Apply & Grow",
+      tag: "Step 3: Partnership",
       description:
-        'Submit applications and connect directly with organisations and corporate partners that can support your business development.',
+        "Submit applications and connect directly with organisations and corporate partners that can support your business development.",
       icon: Rocket,
-      actionTitle: 'Outcomes achieved:',
+      actionTitle: "Outcomes achieved:",
       bullets: [
-        'Direct corporate buyer linkages',
-        'Technical capacity development',
-        'Sustainable, scalable growth'
+        "Direct corporate buyer linkages",
+        "Technical capacity development",
+        "Sustainable, scalable growth"
       ]
     }
   ];
+
+  // Navigate to Create Account page
+  const handleRegister = () => {
+    navigate("/createaccount");
+  };
 
   return (
     <section
@@ -250,11 +259,15 @@ export default function HowItWorks() {
 
           </div>
 
+          {/* REGISTER BUSINESS BUTTON */}
           <button
+            type="button"
+            onClick={handleRegister}
             className="
               shrink-0
               inline-flex
               items-center
+              justify-center
               gap-2
               px-6
               py-3
@@ -268,6 +281,7 @@ export default function HowItWorks() {
               hover:shadow-md
               transition-all duration-200
               active:scale-[0.98]
+              cursor-pointer
             "
           >
             <span>Register Business</span>

@@ -189,6 +189,35 @@ export const sendDirectChatMessage = async (message) => {
   }
 };
 
+ // ======================================================
+
+export const openSupplierConversation = async (supplierUserId) => {
+  try {
+    const id = Number(supplierUserId);
+
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      throw new Error("Valid supplier user ID is required");
+    }
+
+    const response = await api.post(
+      "/chat/conversations/direct",
+      {
+        supplier_user_id: id,
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Open supplier conversation error:",
+      error.response?.data || error.message
+    );
+
+    throw error;
+  }
+};
+
+
 // ======================================================
 // EXPORT ALL CHAT API FUNCTIONS
 // ======================================================
@@ -199,7 +228,7 @@ const chatApi = {
   getChatMessages,
   sendChatMessage,
   getDirectChat,
-  sendDirectChatMessage,
+  sendDirectChatMessage,openSupplierConversation
 };
 
 export default chatApi;
