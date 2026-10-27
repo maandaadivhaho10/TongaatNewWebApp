@@ -1,4 +1,6 @@
+
 import React, { useState } from "react";
+import api from "../../API/axiosInstance";
 
 const NAVY = "#201E64";
 
@@ -7,9 +9,16 @@ const NAVY = "#201E64";
 // ======================================================
 
 const CONTACT = {
-  email: "your-email@example.com",
-  phone: "+27 XX XXX XXXX",
+  email: "adivhaho@mentecfoundationsa.org",
+  phone: "0761411712",
   hours: "Monday – Friday, 08:00 – 17:00",
+};
+
+const INITIAL_FORM = {
+  name: "",
+  email: "",
+  subject: "",
+  message: "",
 };
 
 // ======================================================
@@ -17,15 +26,11 @@ const CONTACT = {
 // ======================================================
 
 export default function ContactUsScreen() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-  });
+  const [formData, setFormData] = useState(INITIAL_FORM);
 
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // ======================================================
   // HANDLE CHANGE
@@ -44,65 +49,96 @@ export default function ContactUsScreen() {
   };
 
   // ======================================================
-  // HANDLE SUBMIT
+  // HANDLE SUBMIT - API INTEGRATION
   // ======================================================
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (
-      !formData.name.trim() ||
-      !formData.email.trim() ||
-      !formData.subject.trim() ||
-      !formData.message.trim()
-    ) {
+    if (loading) return;
+
+    setError("");
+    setSuccess("");
+
+    const name = formData.name.trim();
+    const email = formData.email.trim();
+    const subject = formData.subject.trim();
+    const message = formData.message.trim();
+
+    // Validate required fields
+    if (!name || !email || !subject || !message) {
       setError("Please complete all required fields.");
       return;
     }
 
-    console.log("Contact Request:", formData);
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    setSuccess(
-      "Your message has been submitted successfully. Our support team will get back to you."
-    );
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
 
-    setFormData({
-      name: "",
-      email: "",
-      subject: "",
-      message: "",
-    });
+    if (
+      name.length > 100 ||
+      email.length > 254 ||
+      subject.length > 200 ||
+      message.length > 1000
+    ) {
+      setError("One or more fields exceed the allowed length.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await api.post("/contact", {
+        name,
+        email,
+        subject,
+        message,
+      });
+
+      if (response.data?.success) {
+        setSuccess(
+          response.data.message ||
+            "Your message has been sent successfully. Our support team will get back to you."
+        );
+
+        setFormData(INITIAL_FORM);
+      } else {
+        setError(
+          response.data?.message ||
+            "Unable to send your message. Please try again."
+        );
+      }
+    } catch (err) {
+      console.error("Contact submission error:", err);
+
+      setError(
+        err.response?.data?.message ||
+          "Unable to send your message. Please check your connection and try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="w-full">
-
       {/* ==================================================
           HEADER
       ================================================== */}
 
       <div className="mb-5">
         <h1
-          className="
-            text-2xl
-            font-extrabold
-            leading-tight
-            sm:text-3xl
-          "
+          className="text-2xl font-extrabold leading-tight sm:text-3xl"
           style={{ color: NAVY }}
         >
           Contact Us
         </h1>
 
-        <p
-          className="
-            mt-1
-            max-w-2xl
-            text-sm
-            leading-5
-            text-neutral-500
-          "
-        >
+        <p className="mt-1 max-w-2xl text-sm leading-5 text-neutral-500">
           Need help with your business profile, documents,
           ESD opportunities, or using the portal? Contact our
           support team and we will assist you.
@@ -113,26 +149,18 @@ export default function ContactUsScreen() {
           MAIN CONTENT
       ================================================== */}
 
-      <div
-        className="
-          grid
-          grid-cols-1
-          gap-4
-          lg:grid-cols-3
-        "
-      >
-
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* ==================================================
             LEFT SIDE
         ================================================== */}
 
         <div className="space-y-3 lg:col-span-1">
-
           {/* EMAIL */}
 
           <ContactCard
             title="Email"
             value={CONTACT.email}
+            href={`mailto:${CONTACT.email}`}
             icon={
               <svg
                 className="h-4 w-4"
@@ -163,6 +191,7 @@ export default function ContactUsScreen() {
           <ContactCard
             title="Phone"
             value={CONTACT.phone}
+            href={`tel:${CONTACT.phone}`}
             icon={
               <svg
                 className="h-4 w-4"
@@ -216,12 +245,7 @@ export default function ContactUsScreen() {
           ================================================== */}
 
           <div
-            className="
-              border-l-4
-              bg-white
-              p-4
-              shadow-sm
-            "
+            className="border-l-4 bg-white p-4 shadow-sm"
             style={{
               borderLeftColor: NAVY,
             }}
@@ -233,15 +257,7 @@ export default function ContactUsScreen() {
               What can we help you with?
             </h3>
 
-            <ul
-              className="
-                mt-2
-                space-y-1
-                text-xs
-                leading-5
-                text-neutral-500
-              "
-            >
+            <ul className="mt-2 space-y-1 text-xs leading-5 text-neutral-500">
               <li>• Business profile assistance</li>
               <li>• CIPC / CoReg documents</li>
               <li>• Tax PIN assistance</li>
@@ -257,40 +273,18 @@ export default function ContactUsScreen() {
             CONTACT FORM
         ================================================== */}
 
-        <div
-          className="
-            min-w-0
-            border
-            border-neutral-200
-            bg-white
-            p-4
-            shadow-sm
-            sm:p-5
-            lg:col-span-2
-          "
-        >
+        <div className="min-w-0 border border-neutral-200 bg-white p-4 shadow-sm sm:p-5 lg:col-span-2">
           {/* FORM HEADER */}
 
           <div className="mb-4">
             <h2
-              className="
-                text-lg
-                font-bold
-                sm:text-xl
-              "
+              className="text-lg font-bold sm:text-xl"
               style={{ color: NAVY }}
             >
               Send Us a Message
             </h2>
 
-            <p
-              className="
-                mt-1
-                text-xs
-                leading-5
-                text-neutral-500
-              "
-            >
+            <p className="mt-1 text-xs leading-5 text-neutral-500">
               Complete the form below and provide as much
               information as possible about your enquiry.
             </p>
@@ -304,30 +298,23 @@ export default function ContactUsScreen() {
             onSubmit={handleSubmit}
             className="space-y-4"
           >
+            {/* NAME + EMAIL */}
 
-            {/* ==================================================
-                NAME + EMAIL
-            ================================================== */}
-
-            <div
-              className="
-                grid
-                grid-cols-1
-                gap-4
-                md:grid-cols-2
-              "
-            >
-
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {/* NAME */}
 
               <FormField
                 label="Name"
+                htmlFor="name"
                 required
               >
                 <input
                   id="name"
                   name="name"
                   type="text"
+                  required
+                  maxLength={100}
+                  autoComplete="name"
                   value={formData.name}
                   onChange={handleChange}
                   placeholder="Enter your name"
@@ -339,12 +326,16 @@ export default function ContactUsScreen() {
 
               <FormField
                 label="Email Address"
+                htmlFor="email"
                 required
               >
                 <input
                   id="email"
                   name="email"
                   type="email"
+                  required
+                  maxLength={254}
+                  autoComplete="email"
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="Enter your email"
@@ -353,18 +344,19 @@ export default function ContactUsScreen() {
               </FormField>
             </div>
 
-            {/* ==================================================
-                SUBJECT
-            ================================================== */}
+            {/* SUBJECT */}
 
             <FormField
               label="Subject"
+              htmlFor="subject"
               required
             >
               <input
                 id="subject"
                 name="subject"
                 type="text"
+                required
+                maxLength={200}
                 value={formData.subject}
                 onChange={handleChange}
                 placeholder="What do you need help with?"
@@ -372,27 +364,13 @@ export default function ContactUsScreen() {
               />
             </FormField>
 
-            {/* ==================================================
-                MESSAGE
-            ================================================== */}
+            {/* MESSAGE */}
 
             <div>
-              <div
-                className="
-                  mb-1.5
-                  flex
-                  items-center
-                  justify-between
-                  gap-3
-                "
-              >
+              <div className="mb-1.5 flex items-center justify-between gap-3">
                 <label
                   htmlFor="message"
-                  className="
-                    text-xs
-                    font-semibold
-                    text-neutral-700
-                  "
+                  className="text-xs font-semibold text-neutral-700"
                 >
                   Message
 
@@ -401,13 +379,7 @@ export default function ContactUsScreen() {
                   </span>
                 </label>
 
-                <span
-                  className="
-                    shrink-0
-                    text-[11px]
-                    text-neutral-400
-                  "
-                >
+                <span className="shrink-0 text-[11px] text-neutral-400">
                   {formData.message.length}/1000
                 </span>
               </div>
@@ -416,6 +388,7 @@ export default function ContactUsScreen() {
                 id="message"
                 name="message"
                 rows={5}
+                required
                 maxLength={1000}
                 value={formData.message}
                 onChange={handleChange}
@@ -441,18 +414,13 @@ export default function ContactUsScreen() {
             </div>
 
             {/* ==================================================
-                ERROR
+                ERROR MESSAGE
             ================================================== */}
 
             {error && (
               <div
-                className="
-                  border
-                  border-red-200
-                  bg-red-50
-                  px-3
-                  py-2
-                "
+                role="alert"
+                className="border border-red-200 bg-red-50 px-3 py-2"
               >
                 <p className="text-xs text-red-700">
                   {error}
@@ -461,18 +429,13 @@ export default function ContactUsScreen() {
             )}
 
             {/* ==================================================
-                SUCCESS
+                SUCCESS MESSAGE
             ================================================== */}
 
             {success && (
               <div
-                className="
-                  border
-                  border-green-200
-                  bg-green-50
-                  px-3
-                  py-2
-                "
+                role="status"
+                className="border border-green-200 bg-green-50 px-3 py-2"
               >
                 <p className="text-xs text-green-700">
                   {success}
@@ -481,22 +444,19 @@ export default function ContactUsScreen() {
             )}
 
             {/* ==================================================
-                SUBMIT
+                SUBMIT BUTTON
             ================================================== */}
 
-            <div
-              className="
-                flex
-                justify-end
-                border-t
-                border-neutral-200
-                pt-4
-              "
-            >
+            <div className="flex justify-end border-t border-neutral-200 pt-4">
               <button
                 type="submit"
+                disabled={loading}
                 className="
+                  flex
                   w-full
+                  items-center
+                  justify-center
+                  gap-2
                   px-5
                   py-2.5
                   text-xs
@@ -504,13 +464,40 @@ export default function ContactUsScreen() {
                   text-white
                   transition
                   hover:opacity-90
+                  disabled:cursor-not-allowed
+                  disabled:opacity-60
                   sm:w-auto
                 "
                 style={{
                   backgroundColor: NAVY,
                 }}
               >
-                Send Message
+                {loading && (
+                  <svg
+                    className="h-4 w-4 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 0 1 8-8V0C5.37 0 0 5.37 0 12h4Z"
+                    />
+                  </svg>
+                )}
+
+                {loading
+                  ? "Sending Message..."
+                  : "Send Message"}
               </button>
             </div>
           </form>
@@ -528,32 +515,14 @@ function ContactCard({
   title,
   value,
   icon,
+  href,
 }) {
   return (
-    <div
-      className="
-        border
-        border-neutral-200
-        bg-white
-        p-4
-        shadow-sm
-      "
-    >
+    <div className="border border-neutral-200 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-3">
-
         {/* ICON */}
 
-        <div
-          className="
-            flex
-            h-9
-            w-9
-            shrink-0
-            items-center
-            justify-center
-            bg-[#201E64]/10
-          "
-        >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#201E64]/10">
           {icon}
         </div>
 
@@ -561,26 +530,24 @@ function ContactCard({
 
         <div className="min-w-0">
           <h3
-            className="
-              text-xs
-              font-bold
-            "
+            className="text-xs font-bold"
             style={{ color: NAVY }}
           >
             {title}
           </h3>
 
-          <p
-            className="
-              mt-0.5
-              break-words
-              text-xs
-              leading-5
-              text-neutral-500
-            "
-          >
-            {value}
-          </p>
+          {href ? (
+            <a
+              href={href}
+              className="mt-0.5 block break-words text-xs leading-5 text-neutral-500 hover:underline"
+            >
+              {value}
+            </a>
+          ) : (
+            <p className="mt-0.5 break-words text-xs leading-5 text-neutral-500">
+              {value}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -593,19 +560,15 @@ function ContactCard({
 
 function FormField({
   label,
+  htmlFor,
   required,
   children,
 }) {
   return (
     <div className="min-w-0">
       <label
-        className="
-          mb-1.5
-          block
-          text-xs
-          font-semibold
-          text-neutral-700
-        "
+        htmlFor={htmlFor}
+        className="mb-1.5 block text-xs font-semibold text-neutral-700"
       >
         {label}
 
