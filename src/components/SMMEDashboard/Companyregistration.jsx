@@ -5,22 +5,16 @@ import { Check, Plus, Trash2 } from "lucide-react";
 const NAVY = "#201E64";
 // Routes are mounted at the server root, while the login Axios baseURL may end in /api.
 const API_ORIGIN = new URL(api.defaults.baseURL || "http://localhost:5000/", window.location.origin).origin;
-// Database sector IDs follow the displayed sector order (1 through 13).
-// The user sees the sector name; the API receives its numeric ID.
+// Sector IDs must match the eight rows in your database sector table.
 const SECTOR_DATABASE_IDS = {
-  mining: 1,
-  agriculture: 2,
-  forestry: 3,
-  fishing: 4,
-  livestock: 5,
-  automotive: 6,
-  agro_processing: 7,
-  heavy_industry: 8,
-  financial_services: 9,
-  wholesale_retail: 10,
-  tourism_hospitality: 11,
-  ict: 12,
-  rd_consulting: 13,
+  sector_1: 1,
+  sector_2: 2,
+  sector_3: 3,
+  sector_4: 4,
+  sector_5: 5,
+  sector_6: 6,
+  sector_7: 7,
+  sector_8: 8,
 };
 
 const FOCUS =
@@ -84,71 +78,95 @@ const STEPS = [
 // ======================================================
 // INDUSTRIES
 // ======================================================
+// Eight sectors and their corresponding sub-categories in the requested order.
 const SECTORS = [
   {
-    "id": "mining",
-    "name": "Mining",
-    "description": "Platinum, chromium, and manganese; major gold and iron ore production."
+    "id": "sector_1",
+    "name": "LOGISTICS",
+    "description": "LOGISTICS-ROAD (OTHER), WAREHOUSING, LOGISTICS-SUGAR CANE",
+    "subcategories": [
+      "LOGISTICS-ROAD (OTHER)",
+      "WAREHOUSING",
+      "LOGISTICS-SUGAR CANE"
+    ]
   },
   {
-    "id": "agriculture",
-    "name": "Agriculture",
-    "description": "Produces maize, wheat, sugarcane, and citrus fruits for domestic and export markets."
+    "id": "sector_2",
+    "name": "ENERGY & Utilities",
+    "description": "LIQUID FUELS, LUBRICANTS, GASES",
+    "subcategories": [
+      "LIQUID FUELS",
+      "LUBRICANTS",
+      "GASES"
+    ]
   },
   {
-    "id": "forestry",
-    "name": "Forestry",
-    "description": "The science, art, and practice of planting, managing, conserving, and repairing forests and woodlands sustainably for human and environmental benefits."
+    "id": "sector_3",
+    "name": "AGRIC EQUIPMENT & SERVICES",
+    "description": "AGRIC SERVICES, AGRIC EQUIPMENT AND SPARES, AGRIC CONSULTING",
+    "subcategories": [
+      "AGRIC SERVICES",
+      "AGRIC EQUIPMENT AND SPARES",
+      "AGRIC CONSULTING"
+    ]
   },
   {
-    "id": "fishing",
-    "name": "Fishing",
-    "description": "The combined practice of farming the land and raising or harvesting aquatic life like fish and shellfish."
+    "id": "sector_4",
+    "name": "CHEMICALS",
+    "description": "INDUSTRIAL CHEMICALS, LIME",
+    "subcategories": [
+      "INDUSTRIAL CHEMICALS",
+      "LIME"
+    ]
   },
   {
-    "id": "livestock",
-    "name": "Livestock farming",
-    "description": "Domesticated animals raised in an agricultural setting to produce commodities such as food, fibre, and labour."
+    "id": "sector_5",
+    "name": "INDIRECTS",
+    "description": "CATERING & VENDING, CLEANING & HYGIENE SERVICES, OFFICE SUPPLIES, MARKETING & COMMUNICATION",
+    "subcategories": [
+      "CATERING & VENDING",
+      "CLEANING & HYGIENE SERVICES",
+      "OFFICE SUPPLIES",
+      "MARKETING & COMMUNICATION"
+    ]
   },
   {
-    "id": "automotive",
-    "name": "Automotive assembly",
-    "description": "Major manufacturing plants."
+    "id": "sector_6",
+    "name": "MRO",
+    "description": "PAINTING, ENGINEERING SPARES, LIFTING EQUIPMENT, BUILDING MAINTENANCE, ELECTRICAL SPARES, PIPING, AUTOMOTIVE",
+    "subcategories": [
+      "PAINTING",
+      "ENGINEERING SPARES",
+      "LIFTING EQUIPMENT",
+      "BUILDING MAINTENANCE",
+      "ELECTRICAL SPARES",
+      "PIPING",
+      "AUTOMOTIVE"
+    ]
   },
   {
-    "id": "agro_processing",
-    "name": "Agro-processing",
-    "description": "Food canning, beverage production, and dairy processing."
+    "id": "sector_7",
+    "name": "PACKAGING",
+    "description": "PALLETS, PACKING MATERIALS, LABELS, FLEXIBLE PLASTICS, PAPER",
+    "subcategories": [
+      "PALLETS",
+      "PACKING MATERIALS",
+      "LABELS",
+      "FLEXIBLE PLASTICS",
+      "PAPER"
+    ]
   },
   {
-    "id": "heavy_industry",
-    "name": "Heavy industry",
-    "description": "Chemicals, metal fabrication, steel production, and construction."
-  },
-  {
-    "id": "financial_services",
-    "name": "Financial services",
-    "description": "Banking, insurance, and real estate."
-  },
-  {
-    "id": "wholesale_retail",
-    "name": "Wholesale & retail",
-    "description": "Widespread commercial trade and distribution networks."
-  },
-  {
-    "id": "tourism_hospitality",
-    "name": "Tourism & hospitality",
-    "description": "Eco-tourism, hotels, and transport services."
-  },
-  {
-    "id": "ict",
-    "name": "Information and Communications Technology (ICT)",
-    "description": "An umbrella term that combines traditional Information Technology (IT) with telecommunications to create, process, store, retrieve, and transmit information in digital or analog form."
-  },
-  {
-    "id": "rd_consulting",
-    "name": "R&D and Consulting",
-    "description": "Scientific research, technical IT consulting, and financial analysis."
+    "id": "sector_8",
+    "name": "SHERQ",
+    "description": "FIRE PROTECTION SERVICES, ENVIRONMENTAL SERVICES, SECURITY SERVICES, PROFESSIONAL SERVICES, PEST CONTROL",
+    "subcategories": [
+      "FIRE PROTECTION SERVICES",
+      "ENVIRONMENTAL SERVICES",
+      "SECURITY SERVICES",
+      "PROFESSIONAL SERVICES",
+      "PEST CONTROL"
+    ]
   }
 ];
 const REVENUE = [
@@ -1624,7 +1642,7 @@ export default function CompanyRegistration() {
                     label="Main product or service"
                     textarea
                     className="sm:col-span-2"
-                    hint="Filled automatically from your industry. You can edit it to describe your business."
+                    hint="Automatically populated with the selected sector’s sub-categories. You can edit this to describe the services your business provides."
                     value={f.service}
                     onChange={set(
                       "service"

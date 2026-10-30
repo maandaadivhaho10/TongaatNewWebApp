@@ -134,17 +134,20 @@ const earnsDocumentPoint = (supplier, key) => {
 
 };
 
-const docScore = (supplier) => REQUIREMENTS.filter(({ key }) => earnsDocumentPoint(supplier, key)).length;
+// Only these three requirements contribute to the maturity score.
+const SCORE_KEYS = ["vat_registration", "bee_document", "financial_statement"];
+const MAX_SCORE = SCORE_KEYS.length;
+const docScore = (supplier) => SCORE_KEYS.filter((key) => earnsDocumentPoint(supplier, key)).length;
 
 const SCORE_FILTERS = [
 
   { key: "all", label: "All Suppliers", match: () => true },
 
-  { key: "compliant", label: "Compliant", match: (score) => score === 5 },
+  { key: "compliant", label: "Compliant", match: (score) => score === 3 },
 
-  { key: "semi", label: "Semi-compliant", match: (score) => score >= 3 && score <= 4 },
+  { key: "semi", label: "Semi-compliant", match: (score) => score === 2 },
 
-  { key: "non", label: "Non-compliant", match: (score) => score >= 1 && score <= 2 },
+  { key: "non", label: "Non-compliant", match: (score) => score <= 1 },
 
 ];
 
@@ -206,9 +209,9 @@ function DetailItem({ icon: Icon, label, value }) {
 
 function DocumentScore({ supplier, onClick }) {
 
-  return <button type="button" onClick={onClick} title="View document details" className="inline-flex items-center gap-2 border border-neutral-200 px-3 py-2 text-xs font-bold text-[#201E64] hover:bg-[#201E64]/5">
+  return <button type="button" onClick={onClick} title="View maturity score details" className="inline-flex items-center gap-2 border border-neutral-200 px-3 py-2 text-xs font-bold text-[#201E64] hover:bg-[#201E64]/5">
 
-    <FileText size={16} />{docScore(supplier)}/5 <ChevronRight size={14} />
+    <FileText size={16} />{docScore(supplier)}/{MAX_SCORE} <ChevronRight size={14} />
 
   </button>;
 
@@ -313,11 +316,11 @@ function DocumentsTab({ supplier, onUpdated }) {
 
     <div className="border border-neutral-200 bg-neutral-50 p-4">
 
-      <div className="flex items-center justify-between"><div><p className="text-xs font-semibold text-neutral-500">Document Submission Score</p><h3 className="mt-1 text-2xl font-extrabold text-[#201E64]">{score}/5</h3></div><ShieldCheck size={30} color={NAVY} /></div>
+      <div className="flex items-center justify-between"><div><p className="text-xs font-semibold text-neutral-500">Business Maturity Score</p><h3 className="mt-1 text-2xl font-extrabold text-[#201E64]">{score}/{MAX_SCORE}</h3></div><ShieldCheck size={30} color={NAVY} /></div>
 
-      <div className="mt-3 h-2 bg-neutral-200"><div className="h-full bg-[#201E64]" style={{ width: `${score * 20}%` }} /></div>
+      <div className="mt-3 h-2 bg-neutral-200"><div className="h-full bg-[#201E64]" style={{ width: `${(score / MAX_SCORE) * 100}%` }} /></div>
 
-      <p className="mt-2 text-xs text-neutral-500">Affidavits do not earn a point. This is a document-submission score, not an official compliance rating.</p>
+      <p className="mt-2 text-xs text-neutral-500">Only VAT registration, a B-BBEE certificate, and a financial statement earn points. Affidavits, company registration, and a Tax Compliance PIN do not add points. This is an internal score, not an official compliance rating.</p>
 
     </div>
 
@@ -337,7 +340,7 @@ function DocumentsTab({ supplier, onUpdated }) {
 
             {provided(status) && safeHttps(url) && <a className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#201E64] hover:underline" href={url} target="_blank" rel="noopener noreferrer"><ExternalLink size={13} /> View document</a>}
 
-          </div><div className="flex items-center gap-2"><StatusPill status={status} /><span className="text-xs font-bold text-neutral-600">{earnsDocumentPoint(supplier, key) ? "+1" : "+0"}</span></div>
+          </div><div className="flex items-center gap-2"><StatusPill status={status} /><span className="text-xs font-bold text-neutral-600">{SCORE_KEYS.includes(key) && earnsDocumentPoint(supplier, key) ? "+1" : "+0"}</span></div>
 
         </div>;
 
@@ -407,7 +410,7 @@ export function SupplierDetails({ supplier, initialTab, onClose, onUpdated }) {
 
       <div className="flex border-b border-neutral-200 px-4">
 
-        {[ ["information", "Supplier Information"], ["documents", `Documents (${docScore(supplier)}/5)`] ].map(([value, label]) => <button type="button" key={value} onClick={() => setTab(value)} className={`border-b-2 px-3 py-3 text-xs font-bold ${tab === value ? "border-[#201E64] text-[#201E64]" : "border-transparent text-neutral-500"}`}>{label}</button>)}
+        {[ ["information", "Supplier Information"], ["documents", `Documents (${docScore(supplier)}/{MAX_SCORE})`] ].map(([value, label]) => <button type="button" key={value} onClick={() => setTab(value)} className={`border-b-2 px-3 py-3 text-xs font-bold ${tab === value ? "border-[#201E64] text-[#201E64]" : "border-transparent text-neutral-500"}`}>{label}</button>)}
 
       </div>
 
@@ -511,7 +514,7 @@ export default function SuppliersScreen() {
 
     <div className="relative border border-neutral-200 bg-white p-4"><Search size={17} className="absolute left-7 top-1/2 -translate-y-1/2 text-neutral-400" /><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search supplier or company..." className="w-full max-w-md border border-neutral-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-[#201E64]" /></div>
 
-    <div className="mt-3 flex flex-wrap gap-2 border-b border-neutral-200 pb-3" role="group" aria-label="Filter suppliers by document submission score">
+    <div className="mt-3 flex flex-wrap gap-2 border-b border-neutral-200 pb-3" role="group" aria-label="Filter suppliers by maturity score">
 
       {SCORE_FILTERS.map((filter) => {
 
@@ -531,7 +534,7 @@ export default function SuppliersScreen() {
 
     {loading ? <div className="mt-3 border border-neutral-200 p-10 text-center text-sm text-neutral-500">Loading suppliers...</div> : <>
 
-      <div className="mt-3 hidden overflow-x-auto border border-neutral-200 bg-white md:block"><table className="w-full min-w-[850px] text-left text-xs"><thead className="bg-neutral-50 text-[11px] uppercase text-neutral-500"><tr>{["Supplier", "Company", "Locality", "B-BBEE", "Document Score", "Details"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody>{filtered.map((s) => <tr key={s.user_id} className="border-t border-neutral-100 hover:bg-neutral-50"><td className="px-4 py-3"><p className="font-bold text-neutral-800">{s.first_name} {s.last_name}</p><p className="text-neutral-500">{s.email}</p></td><td className="px-4 py-3">{s.business_name}</td><td className="px-4 py-3">{s.community || s.business_address || "Not provided"}</td><td className="px-4 py-3"><span className="bg-[#201E64]/10 px-2 py-1 font-bold text-[#201E64]">{formatBee(s.bee_level)}</span></td><td className="px-4 py-3"><DocumentScore supplier={s} onClick={() => openSupplier(s, "documents")} /></td><td className="px-4 py-3"><button type="button" onClick={() => openSupplier(s, "information")} className="font-bold text-[#201E64] hover:underline">View Details</button></td></tr>)}</tbody></table></div>
+      <div className="mt-3 hidden overflow-x-auto border border-neutral-200 bg-white md:block"><table className="w-full min-w-[850px] text-left text-xs"><thead className="bg-neutral-50 text-[11px] uppercase text-neutral-500"><tr>{["Supplier", "Company", "Locality", "B-BBEE", "Maturity Score", "Details"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody>{filtered.map((s) => <tr key={s.user_id} className="border-t border-neutral-100 hover:bg-neutral-50"><td className="px-4 py-3"><p className="font-bold text-neutral-800">{s.first_name} {s.last_name}</p><p className="text-neutral-500">{s.email}</p></td><td className="px-4 py-3">{s.business_name}</td><td className="px-4 py-3">{s.community || s.business_address || "Not provided"}</td><td className="px-4 py-3"><span className="bg-[#201E64]/10 px-2 py-1 font-bold text-[#201E64]">{formatBee(s.bee_level)}</span></td><td className="px-4 py-3"><DocumentScore supplier={s} onClick={() => openSupplier(s, "documents")} /></td><td className="px-4 py-3"><button type="button" onClick={() => openSupplier(s, "information")} className="font-bold text-[#201E64] hover:underline">View Details</button></td></tr>)}</tbody></table></div>
 
       <div className="mt-3 grid gap-3 md:hidden">{filtered.map((s) => <div key={s.user_id} className="border border-neutral-200 bg-white p-4"><p className="font-bold text-[#201E64]">{s.first_name} {s.last_name}</p><p className="mt-1 text-xs text-neutral-500">{s.business_name} · {formatBee(s.bee_level)}</p><div className="mt-3 flex items-center justify-between"><DocumentScore supplier={s} onClick={() => openSupplier(s, "documents")} /><button type="button" className="text-xs font-bold text-[#201E64]" onClick={() => openSupplier(s, "information")}>View Details</button></div></div>)}</div>
 

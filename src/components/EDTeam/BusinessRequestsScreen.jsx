@@ -167,27 +167,15 @@ const beeDocumentType = (supplier = {}) => {
   return null;
 };
 
+// Three-point internal document score: VAT, B-BBEE certificate and financial statement.
+// A B-BBEE affidavit is displayed but does not earn a point.
 const score = (supplier = {}) => {
   const statuses = docStatuses(supplier);
-
-  const otherKeys = [
-    "financial_statement",
-    "company_registration",
-    "vat_registration",
-    "tax_compliance_pin",
-  ];
-
-  const otherPoints = otherKeys.filter((key) =>
-    provided(statuses[key])
-  ).length;
-
-  const beePoint =
-    provided(statuses.bee_document) &&
-    beeDocumentType(supplier) === "BEE_CERTIFICATE"
-      ? 1
-      : 0;
-
-  return otherPoints + beePoint;
+  const vatPoint = provided(statuses.vat_registration) ? 1 : 0;
+  const financialPoint = provided(statuses.financial_statement) ? 1 : 0;
+  const beePoint = provided(statuses.bee_document) &&
+    beeDocumentType(supplier) === "BEE_CERTIFICATE" ? 1 : 0;
+  return vatPoint + financialPoint + beePoint;
 };
 
 // ======================================================
@@ -203,17 +191,17 @@ const SCORE_FILTERS = [
   {
     key: "COMPLIANT",
     label: "Compliant",
-    match: (value) => value === 5,
+    match: (value) => value === 3,
   },
   {
     key: "SEMI",
     label: "Semi-compliant",
-    match: (value) => value >= 3 && value <= 4,
+    match: (value) => value === 2,
   },
   {
     key: "NON",
     label: "Non-compliant",
-    match: (value) => value <= 2,
+    match: (value) => value <= 1,
   },
 ];
 
@@ -297,7 +285,7 @@ function RequestDetails({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 sm:items-center sm:p-5"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/30 sm:items-center sm:p-5"
       onMouseDown={(event) => {
         if (
           event.target === event.currentTarget &&
@@ -492,7 +480,7 @@ function RequestDetails({
                 >
                   <FileText size={16} />
 
-                  Document Score: {score(supplier)}/5
+                  Document Score: {score(supplier)}/3
                 </button>
 
                 {/* MESSAGE SUPPLIER */}
@@ -1077,7 +1065,7 @@ export default function BusinessRequestsScreen({
 
                         {score(
                           request.supplier
-                        )}/5
+                        )}/3
 
                         <ChevronRight size={14} />
                       </button>
@@ -1178,7 +1166,7 @@ export default function BusinessRequestsScreen({
 
                     {score(
                       request.supplier
-                    )}/5 Documents
+                    )}/3 Documents
                   </button>
 
                   <button

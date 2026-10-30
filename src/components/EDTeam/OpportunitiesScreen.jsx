@@ -23,21 +23,16 @@ import { SupplierDetails } from "./SuppliersScreen"; // Adjust path if needed
 
 const NAVY = "#201E64";
 
-// Sector IDs match the database order (1–13).
+// Sector IDs must match the sector table in MySQL (1–8).
 const INDUSTRY_SECTORS = [
-  { sector_id: 1, sector_name: "Agriculture" },
-  { sector_id: 2, sector_name: "Agro-processing" },
-  { sector_id: 3, sector_name: "Automotive Assembly" },
-  { sector_id: 4, sector_name: "Financial Services" },
-  { sector_id: 5, sector_name: "Fishing" },
-  { sector_id: 6, sector_name: "Forestry" },
-  { sector_id: 7, sector_name: "Heavy Industry" },
-  { sector_id: 8, sector_name: "Information and Communications Technology (ICT)" },
-  { sector_id: 9, sector_name: "Livestock Farming" },
-  { sector_id: 10, sector_name: "Mining" },
-  { sector_id: 11, sector_name: "R&D and Consulting" },
-  { sector_id: 12, sector_name: "Tourism & Hospitality" },
-  { sector_id: 13, sector_name: "Wholesale & Retail" },
+  { sector_id: 1, sector_name: "LOGISTICS" },
+  { sector_id: 2, sector_name: "ENERGY & Utilities" },
+  { sector_id: 3, sector_name: "AGRIC EQUIPMENT & SERVICES" },
+  { sector_id: 4, sector_name: "CHEMICALS" },
+  { sector_id: 5, sector_name: "INDIRECTS" },
+  { sector_id: 6, sector_name: "MRO" },
+  { sector_id: 7, sector_name: "PACKAGING" },
+  { sector_id: 8, sector_name: "SHERQ" },
 ];
 
 // =====================================================

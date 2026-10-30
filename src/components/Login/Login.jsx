@@ -246,56 +246,103 @@ export default function Login() {
 
   // ======================================================
 
-  // HANDLE LOGIN
+  
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const email = identifier.trim().toLowerCase();
+  const nextErrors = {};
 
   // ======================================================
+  // VALIDATE EMAIL
+  // ======================================================
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  if (!email) {
+    nextErrors.identifier = "Email address is required";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    nextErrors.identifier = "Enter a valid email address";
+  }
 
-    const email = identifier.trim().toLowerCase();
-    const nextErrors = {};
+  // ======================================================
+  // VALIDATE PASSWORD
+  // ======================================================
 
-    if (!email) {
-      nextErrors.identifier = "Email address is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      nextErrors.identifier = "Enter a valid email address";
+  if (!password) {
+    nextErrors.password = "Password is required";
+  }
+
+  setErrors(nextErrors);
+
+  if (Object.keys(nextErrors).length > 0) return;
+
+  setLoading(true);
+
+  try {
+    // ======================================================
+    // LOGIN USING EXISTING AUTH CONTEXT
+    // ======================================================
+
+    const userDetails = await login(email, password);
+
+    if (!userDetails) {
+      throw new Error("Login failed. No user details returned.");
     }
 
-    if (!password) {
-      nextErrors.password = "Password is required";
+    const roleId = Number(userDetails.role_id);
+
+    // ======================================================
+    // REDIRECT BASED ON USER ROLE
+    // ======================================================
+
+    switch (roleId) {
+      case 1:
+        // SMME
+        navigate("/Smmedashboard", {
+          replace: true,
+        });
+        break;
+
+      case 2:
+        // ED Team
+        navigate("/EDTeamDashboard", {
+          replace: true,
+        });
+        break;
+
+      case 3:
+        // Admin dashboard not implemented yet
+        navigate("/unauthorized", {
+          replace: true,
+        });
+        break;
+
+      case 4:
+        // Super Admin
+        navigate("/super-admin", {
+          replace: true,
+        });
+        break;
+
+      default:
+        navigate("/unauthorized", {
+          replace: true,
+        });
+        break;
     }
+  } catch (error) {
+    console.error("Login failed:", error);
 
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
-
-    setLoading(true);
-
-    try {
-      // AuthContext calls POST /api/auth/login and stores the session.
-      const userDetails = await login(email, password);
-      const roleId = Number(userDetails.role_id);
-
-      if (roleId === 1) {
-        navigate("/Smmedashboard", { replace: true });
-      } else if (roleId === 2) {
-        navigate("/EDTeamDashboard", { replace: true });
-      } else {
-        setErrors({ general: "Your account role is not supported." });
-      }
-    } catch (error) {
-      console.error("Login failed:", error);
-      setErrors({
-        general:
-          error.response?.data?.message ||
-          error.response?.data?.error ||
-          error.message ||
-          "Unable to log in. Please try again.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    setErrors({
+      general:
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Unable to log in. Please try again.",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ======================================================
 
