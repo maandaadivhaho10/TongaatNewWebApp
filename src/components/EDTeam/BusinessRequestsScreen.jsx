@@ -1,4 +1,3 @@
-
 import React, {
   useCallback,
   useEffect,
@@ -19,7 +18,7 @@ import {
 
 import api from "../../API/axiosInstance";
 import { useAuth } from "../../context/AuthContext";
-import { SupplierDetails } from "./SuppliersScreen";
+import { SupplierDetails, docScore, MAX_SCORE } from "./SuppliersScreen";
 
 // ======================================================
 // API ENDPOINTS
@@ -27,7 +26,6 @@ import { SupplierDetails } from "./SuppliersScreen";
 
 const ADVISORY_ENDPOINT = "/advisory/requests";
 
-// Placeholder API - backend will be created later
 const STATUS_ENDPOINT = (id) =>
   `/advisory/requests/${id}/status`;
 
@@ -86,97 +84,15 @@ const supplierName = (supplier = {}) =>
     .filter(Boolean)
     .join(" ") || "Unknown supplier";
 
-const provided = (status) =>
-  ["SUBMITTED", "REGISTERED", "PROVIDED"].includes(
-    String(status || "").toUpperCase()
-  );
-
 // ======================================================
-// DOCUMENT STATUS
+// MATURITY SCORE (out of 4)
+// B-BBEE certificate, financial statement, VAT registration
+// document and contract document: 1 point each.
+// A B-BBEE affidavit earns 0. The logic lives in
+// SuppliersScreen so every screen shows the same score.
 // ======================================================
 
-const docStatuses = (supplier = {}) => ({
-  bee_document:
-    supplier.document_status?.bee_document ||
-    (supplier.bee_document_submitted
-      ? "SUBMITTED"
-      : "NOT_SUBMITTED"),
-
-  financial_statement:
-    supplier.document_status?.financial_statement ||
-    (supplier.has_financial_statement
-      ? "SUBMITTED"
-      : "NOT_SUBMITTED"),
-
-  company_registration:
-    supplier.document_status?.company_registration ||
-    (supplier.has_company_registration_document
-      ? "SUBMITTED"
-      : "NOT_SUBMITTED"),
-
-  vat_registration:
-    supplier.document_status?.vat_registration ||
-    (supplier.has_vat_registration
-      ? "REGISTERED"
-      : "NOT_REGISTERED"),
-
-  tax_compliance_pin:
-    supplier.document_status?.tax_compliance_pin ||
-    (supplier.has_tax_compliance_pin
-      ? "PROVIDED"
-      : "NOT_PROVIDED"),
-});
-
-const beeDocumentType = (supplier = {}) => {
-  const explicit = String(
-    supplier.bee_document_type || ""
-  ).toUpperCase();
-
-  if (explicit.includes("AFFIDAVIT")) {
-    return "BEE_AFFIDAVIT";
-  }
-
-  if (explicit.includes("CERTIFICATE")) {
-    return "BEE_CERTIFICATE";
-  }
-
-  const docs = Array.isArray(supplier.documents)
-    ? supplier.documents
-    : [];
-
-  if (
-    docs.some(
-      (doc) =>
-        String(doc.document_type).toUpperCase() ===
-        "BEE_AFFIDAVIT"
-    )
-  ) {
-    return "BEE_AFFIDAVIT";
-  }
-
-  if (
-    docs.some(
-      (doc) =>
-        String(doc.document_type).toUpperCase() ===
-        "BEE_CERTIFICATE"
-    )
-  ) {
-    return "BEE_CERTIFICATE";
-  }
-
-  return null;
-};
-
-// Three-point internal document score: VAT, B-BBEE certificate and financial statement.
-// A B-BBEE affidavit is displayed but does not earn a point.
-const score = (supplier = {}) => {
-  const statuses = docStatuses(supplier);
-  const vatPoint = provided(statuses.vat_registration) ? 1 : 0;
-  const financialPoint = provided(statuses.financial_statement) ? 1 : 0;
-  const beePoint = provided(statuses.bee_document) &&
-    beeDocumentType(supplier) === "BEE_CERTIFICATE" ? 1 : 0;
-  return vatPoint + financialPoint + beePoint;
-};
+const score = (supplier = {}) => docScore(supplier);
 
 // ======================================================
 // DOCUMENT SCORE FILTERS
@@ -190,17 +106,17 @@ const SCORE_FILTERS = [
   },
   {
     key: "COMPLIANT",
-    label: "Compliant",
-    match: (value) => value === 3,
+    label: "Compliant (4/4)",
+    match: (value) => value === MAX_SCORE,
   },
   {
     key: "SEMI",
-    label: "Semi-compliant",
-    match: (value) => value === 2,
+    label: "Semi-compliant (2-3)",
+    match: (value) => value >= 2 && value < MAX_SCORE,
   },
   {
     key: "NON",
-    label: "Non-compliant",
+    label: "Non-compliant (0-1)",
     match: (value) => value <= 1,
   },
 ];
@@ -480,7 +396,7 @@ function RequestDetails({
                 >
                   <FileText size={16} />
 
-                  Document Score: {score(supplier)}/3
+                  Document Score: {score(supplier)}/{MAX_SCORE}
                 </button>
 
                 {/* MESSAGE SUPPLIER */}
@@ -748,7 +664,6 @@ export default function BusinessRequestsScreen({
       setSaving(true);
       setUpdateError("");
 
-      // Placeholder backend API
       await api.patch(
         STATUS_ENDPOINT(id),
         { status }
@@ -950,9 +865,11 @@ export default function BusinessRequestsScreen({
 
       <p className="mt-2 text-xs text-neutral-500">
         Document submission scores are not
-        official compliance ratings.
-        A submitted B-BBEE affidavit earns
-        no point.
+        official compliance ratings. Each of
+        these earns 1 point: B-BBEE certificate,
+        financial statement, VAT registration
+        document and contract document. A
+        submitted B-BBEE affidavit earns no point.
       </p>
 
       {/* ERROR */}
@@ -1065,7 +982,7 @@ export default function BusinessRequestsScreen({
 
                         {score(
                           request.supplier
-                        )}/3
+                        )}/{MAX_SCORE}
 
                         <ChevronRight size={14} />
                       </button>
@@ -1166,7 +1083,7 @@ export default function BusinessRequestsScreen({
 
                     {score(
                       request.supplier
-                    )}/3 Documents
+                    )}/{MAX_SCORE} Documents
                   </button>
 
                   <button

@@ -13,19 +13,19 @@ import api from "../../API/axiosInstance";
 
 import { useAuth } from "../../context/AuthContext";
 
-import CompanyProfileScreen from "./Companyregistration";
+import CompanyProfileScreen from "./Register/Companyregistration";
 
-import BusinessOpportunitiesScreen from "./BissnessOpportunities";
+import BusinessOpportunitiesScreen from "./BissnessOpportunity/BissnessOpportunities";
 
-import FundingOpportunitiesScreen from "./FundingOpportunitiesScreen";
+import FundingOpportunitiesScreen from "./FundingOpportunity/FundingOpportunitiesScreen";
 
-import BusinessAdvisoryScreen from "./BusinessAdvisoryScreen";
+import BusinessAdvisoryScreen from "./BissnessAdvisory/BusinessAdvisoryScreen";
 
-import MeetingsScreen from "./Meetings";
+import MeetingsScreen from "./Meetings/Meetings";
 
-import FAQScreen from "./FAQScreen";
+import FAQScreen from "./FAQ/FAQScreen";
 
-import ContactUsScreen from "./ContactUsScreen";
+import ContactUsScreen from "./ContactUs/ContactUsScreen";
 
 import ChatScreen from "../Chat/ChatScreen";
 

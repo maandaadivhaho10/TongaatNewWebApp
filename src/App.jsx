@@ -29,8 +29,9 @@ import FarmerRegistration from "./components/RegisterFarmer/FarmerRegistation";
 import CreateAccount from "./components/RegisterSMME/CreateAccount";
 
 import VerifyOtp from "./components/RegisterSMME/VerifyOtp";
+import ForgotPassword from "./components/Login/ForgotPassword"
 
-// ======================================================
+// ===============================================/=======
 // AUTHENTICATION
 // ======================================================
 
@@ -195,6 +196,10 @@ export default function App() {
         path="/"
         element={<LandingPage />}
       />
+      <Route
+  path="/forgot-password"
+  element={<ForgotPassword />}
+/>
 
       <Route
         path="/select-user-type"

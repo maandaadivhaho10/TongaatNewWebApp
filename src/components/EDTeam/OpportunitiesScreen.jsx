@@ -19,7 +19,7 @@ import {
   Download,
 } from "lucide-react";
 
-import { SupplierDetails } from "./SuppliersScreen"; // Adjust path if needed
+import { SupplierDetails, docScore, MAX_SCORE } from "./SuppliersScreen"; // Adjust path if needed
 
 const NAVY = "#201E64";
 
@@ -716,74 +716,39 @@ function SupplierResponseDetails({ response, onBack, onSupplierUpdated }) {
   );
 }
 
-// Match BusinessRequestsScreen document scoring. B-BBEE affidavits do not earn points.
+// ======================================================
+// MATURITY SCORE (out of 4)
+// B-BBEE certificate, financial statement, VAT registration
+// document and contract document: 1 point each.
+// B-BBEE affidavits earn 0. The logic lives in SuppliersScreen
+// so every screen shows the same score.
+// ======================================================
+
 function documentScore(supplier = {}) {
-  const statuses = {
-    bee_document:
-      supplier.document_status?.bee_document ||
-      (supplier.bee_document_submitted ? "SUBMITTED" : "NOT_SUBMITTED"),
-    financial_statement:
-      supplier.document_status?.financial_statement ||
-      (supplier.has_financial_statement ? "SUBMITTED" : "NOT_SUBMITTED"),
-    company_registration:
-      supplier.document_status?.company_registration ||
-      (supplier.has_company_registration_document ? "SUBMITTED" : "NOT_SUBMITTED"),
-    vat_registration:
-      supplier.document_status?.vat_registration ||
-      (supplier.has_vat_registration ? "REGISTERED" : "NOT_REGISTERED"),
-    tax_compliance_pin:
-      supplier.document_status?.tax_compliance_pin ||
-      (supplier.has_tax_compliance_pin ? "PROVIDED" : "NOT_PROVIDED"),
-  };
-  const provided = (value) =>
-    ["SUBMITTED", "REGISTERED", "PROVIDED"].includes(String(value || "").toUpperCase());
-  const docs = Array.isArray(supplier.documents) ? supplier.documents : [];
-  const explicitType = String(supplier.bee_document_type || "").toUpperCase();
-  const beeType = explicitType.includes("AFFIDAVIT")
-    ? "AFFIDAVIT"
-    : explicitType.includes("CERTIFICATE")
-    ? "CERTIFICATE"
-    : docs.some((d) => String(d.document_type || "").toUpperCase() === "BEE_AFFIDAVIT")
-    ? "AFFIDAVIT"
-    : docs.some((d) => String(d.document_type || "").toUpperCase() === "BEE_CERTIFICATE")
-    ? "CERTIFICATE"
-    : "";
-  const others = [
-    "financial_statement",
-    "company_registration",
-    "vat_registration",
-    "tax_compliance_pin",
-  ];
-  return (
-    others.filter((key) => provided(statuses[key])).length +
-    (provided(statuses.bee_document) && beeType === "CERTIFICATE" ? 1 : 0)
-  );
+  return docScore(supplier);
 }
 
 const COMPLIANCE_FILTERS = [
   { key: "all", label: "All Scores", match: () => true },
-  { key: "Compliant", label: "Compliant", match: (n) => n === 5 },
-  { key: "Semi-compliant", label: "Semi-compliant", match: (n) => n >= 3 && n <= 4 },
-  { key: "Non-compliant", label: "Non-compliant", match: (n) => n >= 1 && n <= 2 },
+  { key: "Compliant", label: "Compliant (4/4)", match: (n) => n === MAX_SCORE },
+  { key: "Semi-compliant", label: "Semi-compliant (2-3)", match: (n) => n >= 2 && n < MAX_SCORE },
+  { key: "Non-compliant", label: "Non-compliant (0-1)", match: (n) => n <= 1 },
 ];
 
 function complianceLabel(value) {
-  if (value === 5) return "Compliant";
-  if (value >= 3) return "Semi-compliant";
-  if (value >= 1) return "Non-compliant";
-  return "No score";
+  if (value === MAX_SCORE) return "Compliant";
+  if (value >= 2) return "Semi-compliant";
+  return "Non-compliant";
 }
 
 function ComplianceLabel({ score }) {
   const label = complianceLabel(score);
   const styles =
-    score === 5
+    score === MAX_SCORE
       ? "bg-green-50 text-green-700"
-      : score >= 3
+      : score >= 2
       ? "bg-amber-50 text-amber-700"
-      : score >= 1
-      ? "bg-red-50 text-red-700"
-      : "bg-neutral-100 text-neutral-600";
+      : "bg-red-50 text-red-700";
   return (
     <span className={`inline-flex px-2 py-1 text-[11px] font-bold ${styles}`}>{label}</span>
   );
@@ -807,7 +772,7 @@ function exportResponsesToExcel(rows, opportunity, type) {
       "B-BBEE Level": r.beeLevel,
       "BWO Ownership (%)": r.bwoOwnership ?? "",
       "BO Ownership (%)": r.boOwnership ?? "",
-      "Documents Score": `${score}/5`,
+      "Documents Score": `${score}/${MAX_SCORE}`,
       Classification: complianceLabel(score),
       Locality: r.locality,
       "Annual Revenue": r.annualRevenue,
@@ -1080,7 +1045,7 @@ function OpportunityDetailsScreen({ opportunity, type, onBack }) {
           </div>
         )}
 
-        {/* Same compact filter tabs as Business Requests. */}
+        {/* Same compact filter tabs as the Suppliers screen. */}
         <div
           className="flex flex-wrap gap-2"
           role="group"
@@ -1196,7 +1161,7 @@ function OpportunityDetailsScreen({ opportunity, type, onBack }) {
                       Locality: <strong>{r.locality}</strong>
                     </p>
                     <p className="mt-3 text-xs">
-                      Documents: <strong>{score}/5</strong>
+                      Documents: <strong>{score}/{MAX_SCORE}</strong>
                     </p>
                     {type === "rfq" && (
                       <p className="mt-1 text-xs">Quotation: {r.quotationAmount || "—"}</p>
@@ -1233,7 +1198,7 @@ function OpportunityDetailsScreen({ opportunity, type, onBack }) {
                           </p>
                         </td>
                         <td className="p-3">{r.beeLevel}</td>
-                        <td className="p-3 font-bold">{score}/5</td>
+                        <td className="p-3 font-bold">{score}/{MAX_SCORE}</td>
                         <td className="p-3">
                           <ComplianceLabel score={score} />
                         </td>

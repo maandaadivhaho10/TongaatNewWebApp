@@ -737,28 +737,18 @@ const handleSubmit = async (e) => {
                 <div className="flex items-center justify-end px-0.5">
 
                   <button
-
-                    type="button"
-
-                    className="
-
-                      text-xs font-medium text-[#201E64]
-
-                      hover:underline
-
-                      focus:outline-none
-
-                      focus-visible:ring-2
-
-                      focus-visible:ring-[#201E64]
-
-                    "
-
-                  >
-
-                    Forgot Password?
-
-                  </button>
+  type="button"
+  onClick={() => navigate("/forgot-password")}
+  className="
+    text-xs font-medium text-[#201E64]
+    hover:underline
+    focus:outline-none
+    focus-visible:ring-2
+    focus-visible:ring-[#201E64]
+  "
+>
+  Forgot Password?
+</button>
 
                 </div>
 
