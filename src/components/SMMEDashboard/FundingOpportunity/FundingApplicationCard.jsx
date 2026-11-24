@@ -1,34 +1,92 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { formatDate } from "./fundingService";
 import { StatusBadge } from "./FundingCard";
 
+const NAVY = "#201E64";
+const DESCRIPTION_LIMIT = 90;
+
 export default function FundingApplicationCard({ item }) {
-  const [expanded, setExpanded] = useState(false);
+  const [showFullDescription, setShowFullDescription] = useState(false);
+
   const description = item.description || "No description provided.";
-  const longDescription = description.length > 170;
-  return <article className="flex min-h-[360px] min-w-0 flex-col overflow-hidden rounded-none border border-neutral-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-    <div className="flex flex-1 flex-col p-4 sm:p-5">
-      <div className="flex justify-end"><StatusBadge status={item.status} /></div>
-      <div className="mt-4">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Title</p>
-        <h3 className="mt-1 break-words text-lg font-bold leading-snug text-[#201E64]">{item.title || "Not available"}</h3>
+  const isLongDescription = description.length > DESCRIPTION_LIMIT;
+  const displayedDescription =
+    showFullDescription || !isLongDescription
+      ? description
+      : `${description.substring(0, DESCRIPTION_LIMIT).trim()}...`;
+
+  return (
+    <article className="flex h-full min-w-0 flex-col overflow-hidden border border-neutral-200 bg-white shadow-sm transition duration-200 hover:shadow-md">
+      <div className="flex h-full flex-1 flex-col p-4">
+        {/* BADGES */}
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span
+            className="inline-flex items-center px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white"
+            style={{ backgroundColor: NAVY }}
+          >
+            Funding
+          </span>
+
+          <StatusBadge status={item.status} />
+        </div>
+
+        {/* TITLE */}
+        <h3 className="break-words text-base font-bold leading-5" style={{ color: NAVY }}>
+          {item.title || "Not available"}
+        </h3>
+
+        {/* DESCRIPTION */}
+        <div className="mt-2">
+          <p className="whitespace-pre-wrap break-words text-xs leading-5 text-neutral-500">
+            {displayedDescription}
+          </p>
+
+          {isLongDescription && (
+            <button
+              type="button"
+              onClick={() => setShowFullDescription((previous) => !previous)}
+              aria-expanded={showFullDescription}
+              className="mt-1 text-xs font-semibold hover:underline"
+              style={{ color: NAVY }}
+            >
+              {showFullDescription ? "See less" : "See more"}
+            </button>
+          )}
+        </div>
+
+        {/* DETAILS */}
+        <dl className="mt-auto space-y-2 border-t border-neutral-100 pt-3">
+          {/* FUNDER */}
+          <div className="flex items-start gap-3">
+            <dt className="w-16 shrink-0 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
+              Funder
+            </dt>
+            <dd className="min-w-0 break-words text-xs font-medium text-neutral-700">
+              {item.institution_funder || "Not available"}
+            </dd>
+          </div>
+
+          {/* OPPORTUNITY STATUS */}
+          <div className="flex items-start gap-3">
+            <dt className="w-16 shrink-0 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
+              Status
+            </dt>
+            <dd className="min-w-0 break-words text-xs font-medium text-neutral-700">
+              {item.funding_status || "Not available"}
+            </dd>
+          </div>
+
+          {/* APPLIED */}
+          <div className="flex items-start gap-3">
+            <dt className="w-16 shrink-0 text-[10px] font-bold uppercase tracking-wide text-neutral-400">
+              Applied
+            </dt>
+            <dd className="text-xs font-medium text-neutral-700">
+              {formatDate(item.response_date || item.created_at)}
+            </dd>
+          </div>
+        </dl>
       </div>
-      <div className="mt-4 border border-neutral-100 bg-neutral-50 p-3">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Funder</p>
-        <p className="mt-1 break-words text-sm font-semibold text-neutral-700">{item.institution_funder || "Not available"}</p>
-      </div>
-      <div className="mt-4">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Description</p>
-        <p className={`mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-neutral-600 ${!expanded && longDescription ? "line-clamp-3" : ""}`}>{description}</p>
-        {longDescription && <button type="button" onClick={() => setExpanded(v => !v)} aria-expanded={expanded} className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-[#201E64] hover:underline">
-          {expanded ? "See less" : "See more"}{expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-        </button>}
-      </div>
-      <div className="mt-auto space-y-2 border-t border-neutral-100 pt-4 text-xs text-neutral-500">
-        <p>Opportunity status: <span className="font-semibold text-neutral-700">{item.funding_status || "Not available"}</span></p>
-        <p>Applied {formatDate(item.response_date || item.created_at)}</p>
-      </div>
-    </div>
-  </article>;
+    </article>
+  );
 }

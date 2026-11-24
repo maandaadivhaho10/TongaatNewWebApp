@@ -18,13 +18,7 @@ import Footer from "./components/LandingComponents/Footer";
 
 // ======================================================
 // REGISTRATION COMPONENTS
-// ======================================================
-
-import GrowerTypeSelector from "./components/UserSelection/GrowerTypeSelector";
-
-import SMMERegistration from "./components/RegisterSMME/SMMEregistration";
-
-import FarmerRegistration from "./components/RegisterFarmer/FarmerRegistation";
+// =====================================================
 
 import CreateAccount from "./components/RegisterSMME/CreateAccount";
 
@@ -200,21 +194,6 @@ export default function App() {
   path="/forgot-password"
   element={<ForgotPassword />}
 />
-
-      <Route
-        path="/select-user-type"
-        element={<GrowerTypeSelector />}
-      />
-
-      <Route
-        path="/register/smme"
-        element={<SMMERegistration />}
-      />
-
-      <Route
-        path="/register/farmer"
-        element={<FarmerRegistration />}
-      />
 
       <Route
         path="/login"

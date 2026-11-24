@@ -152,10 +152,10 @@ export default function Hero() {
                 aria-live="polite"
               >
                 {loading
-                  ? "..."
-                  : supplierCount !== null
-                    ? supplierCount.toLocaleString("en-ZA")
-                    : "1,450+"}
+  ? "..."
+  : supplierCount !== null
+    ? `${supplierCount.toLocaleString("en-ZA")}+`
+    : "1,450+"}
               </div>
 
               <p className="mt-3 text-base text-neutral-600 leading-relaxed">

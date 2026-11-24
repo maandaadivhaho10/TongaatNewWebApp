@@ -105,6 +105,27 @@ function dateOnly(value) {
   return String(value).slice(0, 10);
 }
 
+// Turns a stored document path (quotation_document_path) into a URL the browser can open.
+// - Full URLs (S3, Cloudinary, etc.) are used as they are.
+// - Relative paths (e.g. "uploads/quotations/file.pdf") are resolved against the API server.
+//   If your files are served from a different base URL, change `origin` below.
+function resolveDocumentUrl(path) {
+  if (!path) return null;
+  const value = String(path).trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+
+  let origin = window.location.origin;
+  try {
+    const base = api.defaults?.baseURL;
+    if (base) origin = new URL(base, window.location.origin).origin;
+  } catch {
+    // fall back to the current origin
+  }
+
+  return `${origin}/${value.replace(/\\/g, "/").replace(/^\/+/, "")}`;
+}
+
 function normalizeOpportunity(row, type) {
   const id = row[type === "rfq" ? "rfq_id" : "tender_id"] ?? row.id;
   const sectors =
@@ -152,6 +173,7 @@ function normalizeOpportunity(row, type) {
 
 function normalizeResponse(row, type) {
   const s = row.supplier || row.business_profile || row;
+  const quotationDocumentPath = row.quotation_document_path || null;
   return {
     ...row,
     id: row.rfq_response_id ?? row.tender_response_id ?? row.id,
@@ -178,7 +200,8 @@ function normalizeResponse(row, type) {
         ? `R${Number(row.quoted_price).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
         : null,
     proposal: row.proposal,
-    quotationDocumentPath: row.quotation_document_path,
+    quotationDocumentPath,
+    quotationDocumentUrl: resolveDocumentUrl(quotationDocumentPath),
     status: row.status || row.response_status || "SUBMITTED",
     supplier: s,
   };
@@ -259,6 +282,29 @@ function DetailItem({ icon: Icon, label, value }) {
         </p>
       </div>
     </div>
+  );
+}
+
+// ======================================================
+// DOCUMENT LINK
+// Opens the file stored in quotation_document_path in a new tab.
+// Shown under its own "Document" title, separate from "Quotation".
+// ======================================================
+
+function DocumentLink({ documentUrl }) {
+  return documentUrl ? (
+    <a
+      href={documentUrl}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(event) => event.stopPropagation()}
+      className="inline-flex items-center gap-1 whitespace-nowrap font-bold text-[#201E64] hover:underline"
+    >
+      <FileText className="h-3.5 w-3.5" />
+      View document
+    </a>
+  ) : (
+    <span className="whitespace-nowrap text-[10px] text-neutral-400">No document</span>
   );
 }
 
@@ -728,31 +774,14 @@ function documentScore(supplier = {}) {
   return docScore(supplier);
 }
 
+// Score filter tabs. (The per-supplier classification label was removed;
+// these tabs still let you narrow the list by score.)
 const COMPLIANCE_FILTERS = [
   { key: "all", label: "All Scores", match: () => true },
   { key: "Compliant", label: "Compliant (4/4)", match: (n) => n === MAX_SCORE },
   { key: "Semi-compliant", label: "Semi-compliant (2-3)", match: (n) => n >= 2 && n < MAX_SCORE },
   { key: "Non-compliant", label: "Non-compliant (0-1)", match: (n) => n <= 1 },
 ];
-
-function complianceLabel(value) {
-  if (value === MAX_SCORE) return "Compliant";
-  if (value >= 2) return "Semi-compliant";
-  return "Non-compliant";
-}
-
-function ComplianceLabel({ score }) {
-  const label = complianceLabel(score);
-  const styles =
-    score === MAX_SCORE
-      ? "bg-green-50 text-green-700"
-      : score >= 2
-      ? "bg-amber-50 text-amber-700"
-      : "bg-red-50 text-red-700";
-  return (
-    <span className={`inline-flex px-2 py-1 text-[11px] font-bold ${styles}`}>{label}</span>
-  );
-}
 
 // ======================================================
 // EXCEL EXPORT
@@ -773,7 +802,6 @@ function exportResponsesToExcel(rows, opportunity, type) {
       "BWO Ownership (%)": r.bwoOwnership ?? "",
       "BO Ownership (%)": r.boOwnership ?? "",
       "Documents Score": `${score}/${MAX_SCORE}`,
-      Classification: complianceLabel(score),
       Locality: r.locality,
       "Annual Revenue": r.annualRevenue,
       "Permanent Employees": r.permanentEmployees ?? "",
@@ -784,6 +812,7 @@ function exportResponsesToExcel(rows, opportunity, type) {
             Proposal: r.proposal || "",
           }
         : {}),
+      "Document Link": r.quotationDocumentUrl || "",
       Status: r.status,
       "Date Submitted": r.submittedDate ? formatDate(r.submittedDate) : "",
     };
@@ -1139,11 +1168,18 @@ function OpportunityDetailsScreen({ opportunity, type, onBack }) {
               {pageRows.map((r) => {
                 const score = documentScore(r.supplier);
                 return (
-                  <button
+                  <div
                     key={r.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedResponse(r)}
-                    className="border bg-white p-4 text-left"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedResponse(r);
+                      }
+                    }}
+                    className="cursor-pointer border bg-white p-4 text-left"
                   >
                     <div className="flex justify-between gap-2">
                       <div>
@@ -1152,7 +1188,6 @@ function OpportunityDetailsScreen({ opportunity, type, onBack }) {
                           {r.firstName} {r.lastName}
                         </p>
                       </div>
-                      <ComplianceLabel score={score} />
                     </div>
                     <p className="mt-2 text-xs">
                       B-BBEE: <strong>{r.beeLevel}</strong>
@@ -1164,10 +1199,16 @@ function OpportunityDetailsScreen({ opportunity, type, onBack }) {
                       Documents: <strong>{score}/{MAX_SCORE}</strong>
                     </p>
                     {type === "rfq" && (
-                      <p className="mt-1 text-xs">Quotation: {r.quotationAmount || "—"}</p>
+                      <p className="mt-1 text-xs">
+                        Quotation: <strong>{r.quotationAmount || "—"}</strong>
+                      </p>
                     )}
+                    <div className="mt-1 text-xs">
+                      <span className="mb-1 block">Document:</span>
+                      <DocumentLink documentUrl={r.quotationDocumentUrl} />
+                    </div>
                     <p className="mt-2 text-xs font-bold text-[#201E64]">View supplier →</p>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -1180,9 +1221,9 @@ function OpportunityDetailsScreen({ opportunity, type, onBack }) {
                     <th className="p-3">Supplier</th>
                     <th className="p-3">B-BBEE</th>
                     <th className="p-3">Documents</th>
-                    <th className="p-3">Classification</th>
                     <th className="p-3">Locality</th>
                     {type === "rfq" && <th className="p-3">Quotation</th>}
+                    <th className="p-3">Document</th>
                     <th className="p-3">Action</th>
                   </tr>
                 </thead>
@@ -1199,11 +1240,13 @@ function OpportunityDetailsScreen({ opportunity, type, onBack }) {
                         </td>
                         <td className="p-3">{r.beeLevel}</td>
                         <td className="p-3 font-bold">{score}/{MAX_SCORE}</td>
-                        <td className="p-3">
-                          <ComplianceLabel score={score} />
-                        </td>
                         <td className="p-3">{r.locality}</td>
-                        {type === "rfq" && <td className="p-3">{r.quotationAmount || "—"}</td>}
+                        {type === "rfq" && (
+                          <td className="p-3 font-semibold">{r.quotationAmount || "—"}</td>
+                        )}
+                        <td className="p-3">
+                          <DocumentLink documentUrl={r.quotationDocumentUrl} />
+                        </td>
                         <td className="p-3">
                           <button
                             type="button"

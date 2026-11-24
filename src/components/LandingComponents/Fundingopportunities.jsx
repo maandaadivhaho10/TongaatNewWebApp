@@ -1,129 +1,94 @@
-import React from 'react';
 
-const NAVY = '#201E64';
+import React, { useEffect, useState } from "react";
 
-// Replace with data from your API
-const FUNDING = [
-  {
-    id: 1,
-    title: 'Emerging Grower Grant',
-    description:
-      'Grant funding for small-scale growers to buy seed, fertiliser and irrigation equipment and increase their yields.',
-    funder: 'Tongaat Hulett Development Fund',
-    amount: 'Up to R250k',
-    eligibility: 'Black-owned growers farming 50 hectares or less',
-    closing: '2026-10-20',
-  },
-  {
-    id: 2,
-    title: 'SMME Working Capital Facility',
-    description:
-      'Short-term working capital to help suppliers fulfil purchase orders and cover costs while waiting for payment.',
-    funder: 'Supplier Development Programme',
-    amount: 'R100k – R750k',
-    eligibility: 'Registered suppliers with an active purchase order',
-    closing: '2026-11-30',
-  },
-  {
-    id: 3,
-    title: 'Equipment and Machinery Finance',
-    description:
-      'Subsidised asset finance for businesses that need machinery, vehicles or tools to meet supply requirements.',
-    funder: 'Enterprise Development Partner Bank',
-    amount: 'Up to R1m',
-    eligibility: 'Businesses trading for at least 12 months',
-    closing: '2026-12-15',
-  },
-  {
-    id: 4,
-    title: 'Youth Enterprise Start-Up Fund',
-    description:
-      'Seed funding and mentorship for young entrepreneurs starting a business that serves our value chain.',
-    funder: 'Youth Development Initiative',
-    amount: 'Up to R150k',
-    eligibility: 'Entrepreneurs aged 18 to 35',
-    closing: '2026-10-12',
-  },
-  {
-    id: 5,
-    title: 'Women-Owned Business Growth Grant',
-    description:
-      'Funding for women-owned businesses to expand operations, hire staff and meet quality and compliance standards.',
-    funder: 'Tongaat Hulett Development Fund',
-    amount: 'Up to R300k',
-    eligibility: 'At least 51% women-owned and registered',
-    closing: '2027-01-31',
-  },
-  {
-    id: 6,
-    title: 'Compliance and Certification Support',
-    description:
-      'Covers the cost of certifications, audits and safety compliance that suppliers need to qualify for contracts.',
-    funder: 'Supplier Development Programme',
-    amount: 'Up to R80k',
-    eligibility: 'Registered suppliers on the platform',
-    closing: '2026-11-18',
-  },
-];
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString('en-ZA', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function daysUntil(iso) {
-  return Math.ceil((new Date(iso) - new Date()) / (1000 * 60 * 60 * 24));
-}
+const API_URL = "http://localhost:5000/api/funding/latest";
 
 function FundingCard({ item }) {
-  const daysLeft = daysUntil(item.closing);
-  const closingSoon = daysLeft >= 0 && daysLeft <= 14;
-
   return (
-    <article className="flex flex-col bg-white rounded-none border border-neutral-200 border-t-4 border-t-[#201E64] shadow-sm p-6">
-      {closingSoon && (
-        <span className="self-start mb-3 text-xs font-semibold px-2.5 py-1 rounded-none bg-amber-100 text-amber-800">
-          Closes in {daysLeft} {daysLeft === 1 ? 'day' : 'days'}
-        </span>
-      )}
+    <article className="flex flex-col bg-white rounded-lg border border-neutral-200 shadow-sm p-6 hover:shadow-md transition-shadow">
 
-      <h3 className="text-lg font-bold leading-snug" style={{ color: NAVY }}>
+      {/* Funding title */}
+      <h3 className="text-lg font-bold leading-snug text-[#201E64]">
         {item.title}
       </h3>
 
+      {/* Description */}
       <p className="mt-3 text-sm text-neutral-600 leading-relaxed">
-        {item.description}
+        {item.description || "No description available."}
       </p>
 
-      <dl className="mt-5 space-y-1.5 text-sm">
-        <div className="flex gap-2">
-          <dt className="text-neutral-500 shrink-0">Funder:</dt>
-          <dd className="text-neutral-800">{item.funder}</dd>
+      {/* Funding information */}
+      <dl className="mt-5 space-y-3 text-sm">
+
+        <div className="flex flex-col gap-1">
+          <dt className="text-neutral-500 font-medium">
+            Institution / Funder
+          </dt>
+          <dd className="text-neutral-800 font-semibold">
+            {item.institution_funder || "Not specified"}
+          </dd>
         </div>
-        <div className="flex gap-2">
-          <dt className="text-neutral-500 shrink-0">Who can apply:</dt>
-          <dd className="text-neutral-800">{item.eligibility}</dd>
+
+        <div className="flex items-center gap-2">
+          <dt className="text-neutral-500 font-medium">
+            Status:
+          </dt>
+          <dd>
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+              item.status?.toUpperCase() === "OPEN"
+                ? "bg-green-100 text-green-700"
+                : "bg-neutral-100 text-neutral-600"
+            }`}>
+              {item.status || "Not specified"}
+            </span>
+          </dd>
         </div>
-        <div className="flex gap-2">
-          <dt className="text-neutral-500 shrink-0">Closes:</dt>
-          <dd className="text-neutral-800">{formatDate(item.closing)}</dd>
-        </div>
+
       </dl>
-
-      <p
-        className="mt-5 pt-5 border-t border-neutral-100 text-base font-bold mt-auto"
-        style={{ color: NAVY }}
-      >
-        {item.amount}
-      </p>
     </article>
   );
 }
 
-export default function FundingOpportunities({ funding = FUNDING }) {
+export default function FundingOpportunities() {
+
+  const [funding, setFunding] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Fetch latest funding opportunities from backend
+  useEffect(() => {
+    const fetchFunding = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(API_URL);
+
+        if (!response.ok) {
+          throw new Error("Failed to retrieve funding opportunities.");
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(
+            result.message || "Unable to load funding opportunities."
+          );
+        }
+
+        setFunding(result.data || []);
+
+      } catch (err) {
+        console.error("Funding API Error:", err);
+        setError(err.message || "Something went wrong.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFunding();
+  }, []);
+
   return (
     <section
       id="funding"
@@ -133,31 +98,60 @@ export default function FundingOpportunities({ funding = FUNDING }) {
 
         {/* Heading */}
         <div className="max-w-2xl">
-          <h2
-            className="text-3xl sm:text-4xl font-extrabold tracking-tight"
-            style={{ color: NAVY }}
-          >
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#201E64]">
             Funding opportunities
           </h2>
+
           <p className="mt-3 text-base sm:text-lg text-neutral-600 leading-relaxed">
             Grants and finance available to help registered businesses grow.
           </p>
         </div>
 
-        {/* List */}
-        {funding.length > 0 ? (
+        {/* Loading state */}
+        {loading && (
+          <div className="mt-10 text-center py-10">
+            <p className="text-neutral-500">
+              Loading funding opportunities...
+            </p>
+          </div>
+        )}
+
+        {/* Error state */}
+        {!loading && error && (
+          <div className="mt-10 p-6 bg-red-50 border border-red-200 rounded-lg text-center">
+            <p className="text-red-700 font-medium">
+              {error}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-3 text-sm font-semibold text-[#201E64] underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* Funding cards */}
+        {!loading && !error && funding.length > 0 && (
           <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {funding.map((item) => (
-              <FundingCard key={item.id} item={item} />
+              <FundingCard
+                key={item.funding_id}
+                item={item}
+              />
             ))}
           </div>
-        ) : (
-          <div className="mt-10 bg-[#F5F6FA] border border-neutral-200 rounded-none p-10 text-center">
+        )}
+
+        {/* Empty state */}
+        {!loading && !error && funding.length === 0 && (
+          <div className="mt-10 bg-[#F5F6FA] border border-neutral-200 rounded-lg p-10 text-center">
             <p className="font-semibold text-neutral-900">
-              There is no funding open right now
+              There are no funding opportunities available right now.
             </p>
-            <p className="mt-1 text-sm text-neutral-500">
-              Check back soon for new funding opportunities.
+
+            <p className="mt-2 text-sm text-neutral-500">
+              Please check back soon for new funding opportunities.
             </p>
           </div>
         )}
