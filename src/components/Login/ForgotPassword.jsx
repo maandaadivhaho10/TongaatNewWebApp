@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = "https://tongaatbackend-testing.up.railway.app/api";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();

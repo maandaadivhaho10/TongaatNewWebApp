@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 
-const API_URL = "http://localhost:5000/api/funding/latest";
+const API_URL = "https://tongaatbackend-testing.up.railway.app/api/funding/latest";
 
 function FundingCard({ item }) {
   return (

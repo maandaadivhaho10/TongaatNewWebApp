@@ -5,7 +5,7 @@ import { RefreshCw } from "lucide-react";
 const NAVY = "#201E64";
 
 const API_URL =
-  "http://localhost:5000/api/landing/opportunities/latest";
+  "https://tongaatbackend-testing.up.railway.app/api/landing/opportunities/latest";
 
 // ======================================================
 // FORMAT DATE

@@ -17,7 +17,7 @@ export default function Hero() {
     const fetchSupplierCount = async () => {
       try {
         const response = await fetch(
-          "http://localhost:5000/api/dashboard/count",
+          "https://tongaatbackend-testing.up.railway.app/api/dashboard/count",
           { signal: controller.signal }
         );
 
