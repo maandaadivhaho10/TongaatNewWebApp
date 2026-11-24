@@ -4,7 +4,7 @@ import { io } from "socket.io-client";
 // SOCKET.IO CONFIGURATION
 // ======================================================
 
-const SOCKET_URL = "http://localhost:5000";
+const SOCKET_URL = "https://tongaatbackend-testing.up.railway.app/";
 
 export const chatSocket = io(SOCKET_URL, {
   autoConnect: false,
